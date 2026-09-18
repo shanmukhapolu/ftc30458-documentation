@@ -3,8 +3,6 @@ const icons = {
   practices: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>',
   log: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
   team: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3.5 20c.6-3.5 2.5-5 5.5-5s4.9 1.5 5.5 5M14 15.5c2.8-.2 5 .9 6 4.5"/></svg>',
-  timeline: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4v16M6 8h8M6 14h10M18 14v6"/></svg>',
-  portfolio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h14v16H5z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>',
   logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 5H5v14h5"/><path d="m14 8 4 4-4 4"/><path d="M18 12H9"/></svg>'
 };
 
@@ -21,10 +19,6 @@ function initials(name) {
 function navItem(id, label, href, icon, active) {
   return '<li><a class="nav-link ' + (id === active ? "active" : "") + '" href="./' + href + '">' +
     '<span class="nav-icon">' + icon + '</span><span>' + label + '</span></a></li>';
-}
-
-function disabledItem(label, icon) {
-  return '<li><span class="nav-link" style="opacity:.42;cursor:default"><span class="nav-icon">' + icon + '</span><span>' + label + '</span></span></li>';
 }
 
 export function renderShell(options) {
@@ -47,38 +41,20 @@ export function renderShell(options) {
         '<div class="sidebar-kicker">Team engineering documentation</div>' +
       '</div>' +
       '<nav class="sidebar-nav">' +
-        '<div class="nav-section">' +
-          '<div class="nav-label">Workspace</div>' +
-          '<ul class="nav-list">' +
-            navItem("dashboard", "Dashboard", "dashboard.html", icons.home, active) +
-            navItem("practices", "Practices", "practices.html", icons.practices, active) +
-            navItem("my-log", "My Logs", "my-log.html", icons.log, active) +
-          '</ul>' +
-        '</div>' +
-        '<div class="nav-section">' +
-          '<div class="nav-label">Team</div>' +
-          '<ul class="nav-list">' +
-            navItem("team", "Team", "team.html", icons.team, active) +
-          '</ul>' +
-        '</div>' +
-        '<div class="nav-section">' +
-          '<div class="nav-label">Coming next</div>' +
-          '<ul class="nav-list">' +
-            disabledItem("Timeline", icons.timeline) +
-            disabledItem("Portfolio", icons.portfolio) +
-          '</ul>' +
-        '</div>' +
+        '<div class="nav-section"><div class="nav-label">Workspace</div><ul class="nav-list">' +
+          navItem("dashboard", "Dashboard", "dashboard.html", icons.home, active) +
+          navItem("practices", "Practices", "practices.html", icons.practices, active) +
+          navItem("my-log", "My Logs", "practices.html", icons.log, active) +
+        '</ul></div>' +
+        '<div class="nav-section"><div class="nav-label">Team</div><ul class="nav-list">' +
+          navItem("team", "Team", "team.html", icons.team, active) +
+        '</ul></div>' +
       '</nav>' +
-      '<div class="sidebar-footer">' +
-        '<div class="user-card">' +
-          '<div class="avatar">' + esc(initials(name)) + '</div>' +
-          '<div class="user-info"><strong>' + esc(name) + '</strong><span>' + esc(email) + '</span></div>' +
-          '<button id="logout-button" class="logout-button" type="button" title="Sign out" aria-label="Sign out">' + icons.logout + '</button>' +
-        '</div>' +
-      '</div>' +
+      '<div class="sidebar-footer"><div class="user-card">' +
+        '<div class="avatar">' + esc(initials(name)) + '</div>' +
+        '<div class="user-info"><strong>' + esc(name) + '</strong><span>' + esc(email) + '</span></div>' +
+        '<button id="logout-button" class="logout-button" type="button" title="Sign out" aria-label="Sign out">' + icons.logout + '</button>' +
+      '</div></div>' +
     '</aside>' +
-    '<main class="main">' +
-      '<header class="topbar"><div class="page-context"><p>Engineering Log</p><h1>' + esc(title) + '</h1></div><div class="topbar-actions"></div></header>' +
-      '<div id="page-content" class="content"></div>' +
-    '</main>';
+    '<main class="main"><header class="topbar"><div class="page-context"><p>Engineering Log</p><h1>' + esc(title) + '</h1></div><div class="topbar-actions"></div></header><div id="page-content" class="content"></div></main>';
 }
