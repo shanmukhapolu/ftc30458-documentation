@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team Setup | FTC 30458 Engineering Log</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/app.css">
+  <style>
+    body{display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg-dark)}
+    .setup-shell{width:min(100%,620px)}
+    .setup-brand{text-align:center;margin-bottom:24px}
+    .setup-mark{width:58px;height:58px;margin:0 auto 14px;border-radius:15px;background:var(--primary);color:#fff;display:grid;place-items:center;font-family:"Sora",sans-serif;font-weight:700}
+    .setup-card{padding:30px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-minimal)}
+    .setup-card h1{font-size:1.55rem}
+    .setup-card .lead{margin-top:8px;margin-bottom:24px;color:var(--text-muted);font-size:.78rem}
+    .setup-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px}
+    .setup-foot p{font-size:.65rem;color:var(--text-muted)}
+  </style>
+</head>
+<body>
+  <main class="setup-shell">
+    <section class="setup-brand">
+      <div class="setup-mark">MM</div>
+      <div class="eyebrow">FTC 30458 · MasterMinds</div>
+    </section>
+
+    <section class="setup-card">
+      <h1>Set up your team profile</h1>
+      <p class="lead">This is only required once. Your name and primary role are shown to the rest of the team alongside your engineering documentation.</p>
+
+      <form id="setup-form">
+        <div class="form-group">
+          <label class="form-label" for="name">Name</label>
+          <input id="name" class="form-input" type="text" autocomplete="name" placeholder="Your name" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="role">Primary role</label>
+          <select id="role" class="form-select" required>
+            <option value="">Select a role</option>
+            <option>Team Lead</option>
+            <option>Mechanical</option>
+            <option>CAD</option>
+            <option>Programming</option>
+            <option>Electrical</option>
+            <option>Autonomous</option>
+            <option>Vision</option>
+            <option>Testing</option>
+            <option>Strategy</option>
+            <option>Outreach / Sponsorship</option>
+            <option>Media / PR</option>
+            <option>Multi-disciplinary</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <button id="save-profile" class="btn btn-primary" style="width:100%" type="submit">Save Profile</button>
+
+        <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--border)">
+          <div class="form-label">Password</div>
+          <p class="form-hint">Need to change your password? Firebase can email you a password reset link.</p>
+          <button id="reset-password" class="btn btn-outline btn-sm" type="button" style="margin-top:10px">Send Password Reset Email</button>
+        </div>
+      </form>
+
+      <div id="setup-message" class="notice" style="display:none;margin-top:16px"></div>
+
+      <div class="setup-foot">
+        <p id="account-email">Signed in</p>
+        <button id="sign-out" class="btn btn-outline btn-sm" type="button">Sign out</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { requireAuth, saveUserProfile, sendResetPasswordEmail, attachLogout } from "./js/auth.js";
+
+    requireAuth(async function(user, profile) {
+      document.getElementById("account-email").textContent = user.email || "";
+      document.getElementById("name").value = profile?.displayName || "";
+      document.getElementById("role").value = profile?.role || "";
+
+      document.getElementById("setup-form").addEventListener("submit", async function(event) {
+        event.preventDefault();
+
+        const button = document.getElementById("save-profile");
+        const message = document.getElementById("setup-message");
+
+        button.disabled = true;
+        button.textContent = "Saving…";
+        message.style.display = "none";
+
+        try {
+          await saveUserProfile(user, {
+            displayName: document.getElementById("name").value,
+            role: document.getElementById("role").value
+          });
+
+          location.replace("./dashboard.html");
+        } catch (error) {
+          console.error(error);
+          message.textContent = error.message || "Unable to save your profile.";
+          message.className = "notice notice-danger";
+          message.style.display = "block";
+          button.disabled = false;
+          button.textContent = "Save Profile";
+        }
+      });
+
+      document.getElementById("reset-password").addEventListener("click", async function() {
+        try {
+          await sendResetPasswordEmail(user);
+          const message = document.getElementById("setup-message");
+          message.textContent = "Password reset email sent to " + user.email + ".";
+          message.className = "notice notice-success";
+          message.style.display = "block";
+        } catch (error) {
+          console.error(error);
+          const message = document.getElementById("setup-message");
+          message.textContent = error.message || "Unable to send the reset email.";
+          message.className = "notice notice-danger";
+          message.style.display = "block";
+        }
+      });
+
+      attachLogout("#sign-out");
+    }, { allowIncomplete: true });
+  </script>
+</body>
+</html>
