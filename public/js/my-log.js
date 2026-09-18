@@ -26,6 +26,13 @@ function esc(value){return String(value||"").replaceAll("&","&amp;").replaceAll(
 function formatDateKey(key){const p=key.split("-").map(Number);return new Intl.DateTimeFormat("en-US",{month:"long",day:"numeric",year:"numeric"}).format(new Date(p[0],p[1]-1,p[2]));}
 function getSelectedAreas(){return Array.from(document.querySelectorAll('input[name="workArea"]:checked')).map(function(input){return input.value;});}
 function slug(value){return value.toLowerCase().replace(/[^a-z0-9]+/g,"-");}
+function getDynamicFieldValues(){
+  const values={};
+  document.querySelectorAll("[data-dynamic-field]").forEach(function(element){
+    values[element.id]=element.value;
+  });
+  return values;
+}
 
 function syncPresetValidity(selected){
   const valid = new Set();
@@ -51,7 +58,11 @@ function renderForm(){
     '</section>';
 
   document.querySelectorAll('input[name="workArea"]').forEach(function(input){
-    input.addEventListener("change",function(){renderDynamicSections();updateSummary();});
+    input.addEventListener("change",function(){
+      const draftValues=getDynamicFieldValues();
+      renderDynamicSections(draftValues);
+      updateSummary();
+    });
   });
 
   document.getElementById("major-accomplishment").addEventListener("input",function(){this.dataset.manual="true";updateSummary();});
@@ -61,7 +72,7 @@ function renderForm(){
   renderDynamicSections();
 }
 
-function renderDynamicSections(){
+function renderDynamicSections(preserveValues={}){
   const container=document.getElementById("dynamic-sections");
   const selected=getSelectedAreas();
   syncPresetValidity(selected);
@@ -71,14 +82,19 @@ function renderDynamicSections(){
     const fields=def.fields.map(function(field){
       const id=slug(area)+"-"+field[0];
       if(field[2]==="textarea"){
-        return '<div class="form-group"><label class="form-label" for="'+id+'">'+esc(field[1])+'</label><textarea id="'+id+'" class="form-textarea" rows="4"></textarea></div>';
+        return '<div class="form-group"><label class="form-label" for="'+id+'">'+esc(field[1])+'</label><textarea id="'+id+'" data-dynamic-field class="form-textarea" rows="4"></textarea></div>';
       }
-      return '<div class="form-group"><label class="form-label" for="'+id+'">'+esc(field[1])+'</label><input id="'+id+'" class="form-input" type="'+(field[0].toLowerCase().includes("count")?"number":"text")+'"></div>';
+      return '<div class="form-group"><label class="form-label" for="'+id+'">'+esc(field[1])+'</label><input id="'+id+'" data-dynamic-field class="form-input" type="'+(field[0].toLowerCase().includes("count")?"number":"text")+'"></div>';
     }).join("");
 
     return '<section class="card-shell dynamic-area visible" style="padding:22px;margin-bottom:16px"><div class="area-heading"><h3>'+esc(area)+'</h3><span>'+esc(def.description)+'</span></div>'+
       '<div class="preset-list" data-area-presets="'+esc(area)+'" style="margin-bottom:16px"></div><div class="form-row">'+fields+'</div></section>';
   }).join("");
+
+  Object.keys(preserveValues).forEach(function(id){
+    const element=document.getElementById(id);
+    if(element)element.value=preserveValues[id];
+  });
 
   selected.forEach(function(area){
     const presetContainer=document.querySelector('[data-area-presets="'+CSS.escape(area)+'"]');
