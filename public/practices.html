@@ -12,9 +12,9 @@
 <body>
   <div id="app-shell"></div>
   <script type="module">
-    import { requireAuth, attachLogout } from "./js/auth.js";
-    import { renderShell } from "./js/shell.js";
-    import { initializePractices } from "./js/practices.js";
+    import { requireAuth, attachLogout } from "./js/auth.js?v=20260918-02";
+    import { renderShell } from "./js/shell.js?v=20260918-02";
+    import { initializePractices } from "./js/practices.js?v=20260918-02";
 
     requireAuth(async function(user) {
       renderShell({ active: "practices", title: "Practices", user: user });
@@ -23,7 +23,7 @@
         '<section class="page-header"><div class="page-header-row">' +
           '<div class="page-header-copy"><div class="eyebrow">Engineering history</div><h2 class="page-title">Practices</h2>' +
           '<p class="page-subtitle">One shared record per practice date. Everyone contributes their own log, and changes sync for the whole team immediately.</p></div>' +
-          '<div class="page-actions"><button id="create-practice" class="btn btn-primary" type="button">Create Today&apos;s Practice</button></div>' +
+          '<div class="page-actions"><button id="create-practice" class="btn btn-primary" type="button">Add Practice</button></div>' +
         '</div></section>' +
         '<section class="card-shell" style="padding:16px;margin-bottom:22px"><div class="form-row">' +
           '<input id="practice-search" class="form-input" type="search" placeholder="Search dates or practice notes…">' +
