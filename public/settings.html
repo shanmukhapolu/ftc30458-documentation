@@ -47,7 +47,14 @@
 
       attachLogout("#logout-button");
 
-      const profile = await getUserProfile(user.uid);
+      let profile = null;
+      try {
+        profile = await getUserProfile(user.uid);
+      } catch (error) {
+        console.error("Unable to load settings profile:", error);
+        showToast("Your profile could not be read. Refresh and try again.", "error", 7000);
+      }
+
       document.getElementById("settings-name").value = profile?.displayName || user.displayName || "";
       document.getElementById("settings-role").value = profile?.role || "";
       document.getElementById("settings-email").value = user.email || "";
