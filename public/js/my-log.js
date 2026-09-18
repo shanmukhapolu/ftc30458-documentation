@@ -218,7 +218,15 @@ export async function initializePracticeLog(user){
 
   if(!practiceId){window.location.href="./practices.html";return;}
 
-  const practiceSnapshot=await getDoc(doc(db,"practices",practiceId));
+  let practiceSnapshot;
+  try {
+    practiceSnapshot=await getDoc(doc(db,"practices",practiceId));
+  } catch(error) {
+    console.error("Practice read failed:",error);
+    document.getElementById("practice-context").textContent="Unable to load practice: "+error.message;
+    showToast("Firestore could not read this practice: "+error.message,"error",7000);
+    return;
+  }
   if(!practiceSnapshot.exists()){
     document.getElementById("practice-context").textContent="That practice does not exist.";
     return;
@@ -231,6 +239,10 @@ export async function initializePracticeLog(user){
 
   onSnapshot(doc(db,"practices",practiceId,"logs",currentUser.uid),function(snapshot){
     if(snapshot.exists())populateExistingLog(snapshot.data());
+  },function(error){
+    console.error("Personal log read failed:",error);
+    updateSaveIndicator("Unable to load");
+    showToast("Your existing log could not be loaded: "+error.message,"error",7000);
   });
 
   document.getElementById("save-log").addEventListener("click",saveLog);
