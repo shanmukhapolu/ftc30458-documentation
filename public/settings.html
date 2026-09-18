@@ -13,9 +13,9 @@
   <div id="app-shell"></div>
 
   <script type="module">
-    import { requireAuth, attachLogout, getUserProfile, saveUserProfile, sendResetPasswordEmail } from "./js/auth.js";
-    import { renderShell } from "./js/shell.js";
-    import { showToast } from "./js/ui.js";
+    import { requireAuth, attachLogout, getUserProfile, saveUserProfile, sendResetPasswordEmail } from "./js/auth.js?v=20260918-02";
+    import { renderShell } from "./js/shell.js?v=20260918-02";
+    import { showToast } from "./js/ui.js?v=20260918-02";
 
     requireAuth(async function(user) {
       renderShell({ active:"settings", title:"Settings", user:user });
