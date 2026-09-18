@@ -1,695 +1,252 @@
-// public/js/dashboard.js
-
 import { db } from "./firebase.js";
-
-import {
-  collection,
-  getDocs,
-  getDoc,
-  doc,
-  query,
-  orderBy
-} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-
-import {
-  showToast,
-  formatDate,
-  formatRelativeTime
-} from "./ui.js";
-
-const SEASON_ID = "2026-27";
+import { collection, doc, onSnapshot, query, orderBy, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 let currentUser = null;
 let practices = [];
+let users = [];
+const logsByPractice = new Map();
+const unsubscribers = new Map();
 
+function localDateKey(date) {
+  const d = date || new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return y + "-" + m + "-" + day;
+}
 
-/* =========================================================
-   INITIALIZATION
-   ========================================================= */
+function formatDateKey(key) {
+  const parts = key.split("-").map(Number);
+  const date = new Date(parts[0], parts[1] - 1, parts[2]);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  }).format(date);
+}
 
-export async function initializeDashboard(user) {
+function dayDifference(laterKey, earlierKey) {
+  const later = new Date(laterKey + "T00:00:00");
+  const earlier = new Date(earlierKey + "T00:00:00");
+  return Math.round((later - earlier) / 86400000);
+}
+
+function esc(value) {
+  return String(value || "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+
+function getTodayPractice() {
+  const today = localDateKey();
+  return practices.find(function(practice) {
+    return practice.id === today || practice.dateKey === today;
+  }) || null;
+}
+
+function missingPastPractices() {
+  const today = localDateKey();
+
+  return practices.filter(function(practice) {
+    const key = practice.dateKey || practice.id;
+    if (!key || key >= today) return false;
+    const logs = logsByPractice.get(practice.id) || [];
+    return !logs.some(function(log) {
+      return log.id === currentUser.uid;
+    });
+  });
+}
+
+async function createPracticeForToday() {
+  const today = localDateKey();
+  const reference = doc(db, "practices", today);
+
+  await setDoc(reference, {
+    title: formatDateKey(today),
+    dateKey: today,
+    createdBy: currentUser.uid,
+    createdByEmail: currentUser.email || "",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+
+  window.location.href = "./practice.html?id=" + encodeURIComponent(today);
+}
+
+function subscribeToPracticeLogs(practiceId) {
+  if (unsubscribers.has(practiceId)) return;
+
+  const logsReference = collection(db, "practices", practiceId, "logs");
+
+  const unsubscribe = onSnapshot(logsReference, function(snapshot) {
+    logsByPractice.set(practiceId, snapshot.docs.map(function(item) {
+      return { id: item.id, ...item.data() };
+    }));
+    render();
+  });
+
+  unsubscribers.set(practiceId, unsubscribe);
+}
+
+function updatePracticeSubscriptions() {
+  const activeIds = new Set(practices.map(function(practice) {
+    return practice.id;
+  }));
+
+  practices.forEach(function(practice) {
+    subscribeToPracticeLogs(practice.id);
+  });
+
+  Array.from(unsubscribers.keys()).forEach(function(id) {
+    if (!activeIds.has(id)) {
+      unsubscribers.get(id)();
+      unsubscribers.delete(id);
+      logsByPractice.delete(id);
+    }
+  });
+}
+
+function render() {
+  const today = localDateKey();
+  const todayPractice = getTodayPractice();
+  const missing = missingPastPractices();
+
+  document.getElementById("stat-practices").textContent = practices.length;
+  document.getElementById("stat-my-logs").textContent = practices.filter(function(practice) {
+    return (logsByPractice.get(practice.id) || []).some(function(log) {
+      return log.id === currentUser.uid;
+    });
+  }).length;
+
+  document.getElementById("stat-today").textContent = todayPractice ? "Yes" : "—";
+  document.getElementById("stat-overdue").textContent = missing.length;
+
+  const todayStatus = document.getElementById("today-status");
+  const todayNote = document.getElementById("today-status-note");
+  const createButton = document.getElementById("create-today");
+
+  if (!todayPractice) {
+    todayStatus.textContent = "Not started";
+    todayNote.textContent = "Create today's shared practice.";
+    createButton.classList.remove("hidden");
+  } else {
+    const todayLogs = logsByPractice.get(todayPractice.id) || [];
+    const mine = todayLogs.some(function(log) {
+      return log.id === currentUser.uid;
+    });
+    todayStatus.textContent = mine ? "Logged" : "Due today";
+    todayNote.textContent = mine ? "Your documentation is saved." : "Your practice log is still missing.";
+    createButton.classList.add("hidden");
+  }
+
+  const totalMembers = users.length;
+  const loggedToday = todayPractice ? (logsByPractice.get(todayPractice.id) || []).length : 0;
+  document.getElementById("team-completion").textContent =
+    totalMembers ? Math.min(loggedToday, totalMembers) + "/" + totalMembers : "—";
+
+  const latest = practices[0];
+  document.getElementById("latest-practice").textContent =
+    latest ? formatDateKey(latest.dateKey || latest.id) : "—";
+  document.getElementById("latest-practice-note").textContent =
+    latest ? ((logsByPractice.get(latest.id) || []).length + " member logs") : "No practice yet";
+
+  const overdueList = document.getElementById("overdue-list");
+  if (!missing.length) {
+    overdueList.innerHTML =
+      '<div class="notice notice-success">You are caught up. No past practice logs are missing.</div>';
+  } else {
+    overdueList.innerHTML = missing.slice(0, 8).map(function(practice) {
+      const key = practice.dateKey || practice.id;
+      const days = dayDifference(today, key);
+      return '<div class="overdue-item">' +
+        '<div><strong>' + esc(formatDateKey(key)) + '</strong><span>' +
+        (days === 1 ? "1 day overdue" : days + " days overdue") +
+        '</span></div>' +
+        '<a class="btn btn-outline btn-sm" href="./my-log.html?practiceId=' + encodeURIComponent(practice.id) + '">Log it</a>' +
+      '</div>';
+    }).join("");
+  }
+
+  const recent = document.getElementById("recent-practices");
+  if (!practices.length) {
+    recent.innerHTML =
+      '<div class="empty-state"><div class="empty-icon">▣</div><h3>No practices yet</h3><p>Create the first practice to start the engineering record.</p></div>';
+  } else {
+    recent.innerHTML = practices.slice(0, 8).map(function(practice) {
+      const logs = logsByPractice.get(practice.id) || [];
+      const key = practice.dateKey || practice.id;
+      return '<article class="practice-row" data-id="' + esc(practice.id) + '">' +
+        '<div class="practice-number">DAY<div class="practice-date">' + esc(formatDateKey(key)) + '</div></div>' +
+        '<div class="practice-main"><h3 class="practice-title">' + esc(formatDateKey(key)) + '</h3>' +
+        '<p class="practice-description">' + logs.length + ' member ' + (logs.length === 1 ? "log" : "logs") + ' documented so far.</p>' +
+        '<div class="practice-meta"><span>Shared practice</span><span>•</span><span>Live synced</span></div></div>' +
+        '<div class="practice-side"><span class="chip ' + (logs.some(function(log){return log.id === currentUser.uid;}) ? "chip-success" : "chip-warning") + '">' +
+        (logs.some(function(log){return log.id === currentUser.uid;}) ? "Logged" : "Needs your log") + '</span></div>' +
+      '</article>';
+    }).join("");
+
+    recent.querySelectorAll("[data-id]").forEach(function(row) {
+      row.addEventListener("click", function() {
+        window.location.href = "./practice.html?id=" + encodeURIComponent(row.dataset.id);
+      });
+    });
+  }
+
+  const activity = [];
+  practices.slice(0, 5).forEach(function(practice) {
+    (logsByPractice.get(practice.id) || []).forEach(function(log) {
+      activity.push({
+        practice: practice,
+        log: log
+      });
+    });
+  });
+
+  activity.sort(function(a,b) {
+    const aTime = a.log.updatedAt && a.log.updatedAt.toMillis ? a.log.updatedAt.toMillis() : 0;
+    const bTime = b.log.updatedAt && b.log.updatedAt.toMillis ? b.log.updatedAt.toMillis() : 0;
+    return bTime - aTime;
+  });
+
+  const activityElement = document.getElementById("recent-activity");
+  if (!activity.length) {
+    activityElement.innerHTML =
+      '<div class="empty-state"><p>No member documentation yet.</p></div>';
+  } else {
+    activityElement.innerHTML = activity.slice(0, 8).map(function(item) {
+      const name = item.log.memberName || item.log.memberEmail || "Team Member";
+      const accomplishment = item.log.majorAccomplishment || "Updated a practice log.";
+      return '<div class="activity-row"><div class="activity-dot"></div><div class="activity-copy"><strong>' +
+        esc(name) + " — " + esc(accomplishment) + '</strong><span>' +
+        esc(formatDateKey(item.practice.dateKey || item.practice.id)) + '</span></div></div>';
+    }).join("");
+  }
+}
+
+export function initializeDashboard(user) {
   currentUser = user;
 
-  try {
-    await loadPractices();
-    updateDashboard();
-  } catch (error) {
-    console.error(
-      "Unable to initialize dashboard:",
-      error
-    );
+  document.getElementById("welcome").textContent =
+    "Welcome back, " + ((user.displayName || user.email || "team member").split(" ")[0]) + ".";
 
-    showToast(
-      "Unable to load dashboard data.",
-      "error"
-    );
-  }
-}
+  document.getElementById("create-today").addEventListener("click", createPracticeForToday);
 
-
-/* =========================================================
-   LOAD PRACTICES
-   ========================================================= */
-
-async function loadPractices() {
-  const practicesReference =
-    collection(
-      db,
-      "seasons",
-      SEASON_ID,
-      "practices"
-    );
-
-  const practicesQuery =
-    query(
-      practicesReference,
-      orderBy(
-        "practiceNumber",
-        "desc"
-      )
-    );
-
-  const snapshot =
-    await getDocs(
-      practicesQuery
-    );
-
-  practices =
-    snapshot.docs.map(
-      (document) => ({
-        id: document.id,
-        ...document.data()
-      })
-    );
-}
-
-
-/* =========================================================
-   DASHBOARD UPDATE
-   ========================================================= */
-
-function updateDashboard() {
-  const currentPractice =
-    practices.find(
-      (practice) =>
-        practice.status ===
-          "in-progress" ||
-        practice.status ===
-          "ready"
-    ) || null;
-
-  const completedPractices =
-    practices.filter(
-      (practice) =>
-        practice.status ===
-        "closed"
-    );
-
-  updateStatCards(
-    practices.length,
-    completedPractices.length,
-    currentPractice
+  const practicesQuery = query(
+    collection(db, "practices"),
+    orderBy("dateKey", "desc")
   );
 
-  updateCurrentPractice(
-    currentPractice
-  );
-
-  updatePracticeProgress(
-    currentPractice
-  );
-
-  updateRecentActivity(
-    currentPractice
-  );
-}
-
-
-/* =========================================================
-   STAT CARDS
-   ========================================================= */
-
-function updateStatCards(
-  totalPractices,
-  completedPractices,
-  currentPractice
-) {
-  const statCards =
-    document.querySelectorAll(
-      ".stat-card"
-    );
-
-  if (statCards.length < 4) {
-    return;
-  }
-
-  /*
-   * Card 1 — Practices Logged
-   */
-  const firstValue =
-    statCards[0].querySelector(
-      ".stat-value"
-    );
-
-  if (firstValue) {
-    firstValue.textContent =
-      totalPractices;
-  }
-
-  /*
-   * Card 2 — Your Entries
-   *
-   * This is updated from practice records
-   * below as well.
-   */
-  const secondValue =
-    statCards[1].querySelector(
-      ".stat-value"
-    );
-
-  if (secondValue) {
-    secondValue.textContent =
-      getUserLogCount();
-  }
-
-  /*
-   * Card 3 — Engineering Decisions
-   */
-  const thirdValue =
-    statCards[2].querySelector(
-      ".stat-value"
-    );
-
-  if (thirdValue) {
-    thirdValue.textContent =
-      getDecisionCount();
-  }
-
-  /*
-   * Card 4 — Portfolio Evidence
-   */
-  const fourthValue =
-    statCards[3].querySelector(
-      ".stat-value"
-    );
-
-  if (fourthValue) {
-    fourthValue.textContent =
-      getEvidenceCount();
-  }
-}
-
-
-/* =========================================================
-   USER LOG COUNT
-   ========================================================= */
-
-function getUserLogCount() {
-  return practices.reduce(
-    (count, practice) => {
-      const submittedMembers =
-        Number(
-          practice.submittedCount ||
-            0
-        );
-
-      /*
-       * This is only a temporary approximation
-       * until we add a user-log summary field to
-       * each practice.
-       *
-       * The proper implementation will query the
-       * user's actual documents.
-       */
-      if (
-        practice.submittedCount >
-          0
-      ) {
-        return count + 1;
-      }
-
-      return count;
-    },
-    0
-  );
-}
-
-
-/* =========================================================
-   ENGINEERING DECISIONS
-   ========================================================= */
-
-function getDecisionCount() {
-  return practices.reduce(
-    (count, practice) => {
-      const decisions =
-        Array.isArray(
-          practice.decisions
-        )
-          ? practice.decisions.length
-          : 0;
-
-      return count + decisions;
-    },
-    0
-  );
-}
-
-
-/* =========================================================
-   PORTFOLIO EVIDENCE
-   ========================================================= */
-
-function getEvidenceCount() {
-  return practices.reduce(
-    (count, practice) => {
-      const evidence =
-        Array.isArray(
-          practice.evidence
-        )
-          ? practice.evidence.length
-          : 0;
-
-      return count + evidence;
-    },
-    0
-  );
-}
-
-
-/* =========================================================
-   CURRENT PRACTICE
-   ========================================================= */
-
-function updateCurrentPractice(
-  practice
-) {
-  const practiceStatus =
-    document.querySelector(
-      ".practice-status"
-    );
-
-  if (!practiceStatus) {
-    return;
-  }
-
-  const strong =
-    practiceStatus.querySelector(
-      "strong"
-    );
-
-  const description =
-    practiceStatus.querySelector(
-      "span"
-    );
-
-  const badge =
-    practiceStatus.querySelector(
-      ".status-badge"
-    );
-
-  const progressBar =
-    practiceStatus.querySelector(
-      ".practice-progress-bar"
-    );
-
-  if (!practice) {
-    if (strong) {
-      strong.textContent =
-        "No active practice";
-    }
-
-    if (description) {
-      description.textContent =
-        "No practice is currently in progress.";
-    }
-
-    if (badge) {
-      badge.textContent =
-        "NO ACTIVE PRACTICE";
-    }
-
-    if (progressBar) {
-      progressBar.style.width =
-        "0%";
-    }
-
-    return;
-  }
-
-  const submitted =
-    Number(
-      practice.submittedCount ||
-        0
-    );
-
-  const members =
-    Number(
-      practice.memberCount ||
-        0
-    );
-
-  const percent =
-    members > 0
-      ? Math.min(
-          100,
-          Math.round(
-            (submitted /
-              members) *
-              100
-          )
-        )
-      : 0;
-
-  if (strong) {
-    strong.textContent =
-      practice.title ||
-      `Practice #${practice.practiceNumber}`;
-  }
-
-  if (description) {
-    description.textContent =
-      members > 0
-        ? `${submitted}/${members} member logs submitted`
-        : "Practice is currently in progress.";
-  }
-
-  if (badge) {
-    badge.textContent =
-      practice.status === "ready"
-        ? "READY TO CLOSE"
-        : "IN PROGRESS";
-  }
-
-  if (progressBar) {
-    progressBar.style.width =
-      `${percent}%`;
-  }
-}
-
-
-/* =========================================================
-   PRACTICE PROGRESS
-   ========================================================= */
-
-function updatePracticeProgress(
-  practice
-) {
-  const memberRows =
-    document.querySelectorAll(
-      ".member-row"
-    );
-
-  if (!practice || !memberRows.length) {
-    return;
-  }
-
-  /*
-   * Detailed individual member status will
-   * eventually come from the actual logs.
-   *
-   * The current dashboard markup contains
-   * placeholder members, so this function will
-   * be replaced once Team member records are
-   * implemented.
-   */
-}
-
-
-/* =========================================================
-   RECENT ACTIVITY
-   ========================================================= */
-
-async function updateRecentActivity(
-  practice
-) {
-  const activityList =
-    document.querySelector(
-      ".activity-list"
-    );
-
-  if (!activityList) {
-    return;
-  }
-
-  if (!practice) {
-    activityList.innerHTML =
-      createEmptyActivity(
-        "No recent activity."
-      );
-
-    return;
-  }
-
-  try {
-    const logsReference =
-      collection(
-        db,
-        "seasons",
-        SEASON_ID,
-        "practices",
-        practice.id,
-        "logs"
-      );
-
-    const logsQuery =
-      query(
-        logsReference,
-        orderBy(
-          "updatedAt",
-          "desc"
-        )
-      );
-
-    const snapshot =
-      await getDocs(
-        logsQuery
-      );
-
-    if (snapshot.empty) {
-      activityList.innerHTML =
-        createEmptyActivity(
-          "No member logs have been submitted yet."
-        );
-
-      return;
-    }
-
-    const logs =
-      snapshot.docs
-        .map(
-          (document) => ({
-            id: document.id,
-            ...document.data()
-          })
-        )
-        .slice(0, 6);
-
-    activityList.innerHTML =
-      logs
-        .map(
-          (log) =>
-            createActivityItem(
-              log
-            )
-        )
-        .join("");
-
-  } catch (error) {
-    console.error(
-      "Unable to load recent activity:",
-      error
-    );
-
-    activityList.innerHTML =
-      createEmptyActivity(
-        "Recent activity is unavailable."
-      );
-  }
-}
-
-
-/* =========================================================
-   ACTIVITY CARD
-   ========================================================= */
-
-function createActivityItem(
-  log
-) {
-  const name =
-    log.memberName ||
-    log.displayName ||
-    log.memberEmail?.split("@")[0] ||
-    "Team Member";
-
-  const areas =
-    Array.isArray(
-      log.workTypes
-    )
-      ? log.workTypes.join(
-          " · "
-        )
-      : "Engineering";
-
-  const summary =
-    log.overallSummary ||
-    getFirstMeaningfulDetail(
-      log.details
-    ) ||
-    "Documented work for this practice.";
-
-  const timestamp =
-    log.updatedAt ||
-    log.submittedAt ||
-    null;
-
-  return `
-    <div class="activity-row">
-
-      <div class="activity-dot"></div>
-
-      <div class="activity-copy">
-
-        <strong>
-          ${escapeHtml(
-            summary
-          )}
-        </strong>
-
-        <span>
-          ${escapeHtml(
-            areas
-          )}
-          ·
-          ${escapeHtml(
-            name
-          )}
-          ·
-          ${escapeHtml(
-            formatActivityTime(
-              timestamp
-            )
-          )}
-        </span>
-
-      </div>
-
-    </div>
-  `;
-}
-
-
-/* =========================================================
-   ACTIVITY HELPERS
-   ========================================================= */
-
-function getFirstMeaningfulDetail(
-  details
-) {
-  if (!details) {
-    return "";
-  }
-
-  for (
-    const area
-    of Object.values(
-      details
-    )
-  ) {
-    if (
-      !area ||
-      typeof area !==
-        "object"
-    ) {
-      continue;
-    }
-
-    for (
-      const value
-      of Object.values(
-        area
-      )
-    ) {
-      if (
-        typeof value ===
-          "string" &&
-        value.trim()
-      ) {
-        return value.trim();
-      }
-    }
-  }
-
-  return "";
-}
-
-function formatActivityTime(
-  value
-) {
-  if (!value) {
-    return "Recently";
-  }
-
-  try {
-    return formatRelativeTime(
-      value
-    );
-  } catch {
-    return formatDate(
-      value
-    );
-  }
-}
-
-function createEmptyActivity(
-  message
-) {
-  return `
-    <div
-      class="empty-state"
-      style="padding: 28px 10px;"
-    >
-      <p class="muted small">
-        ${escapeHtml(
-          message
-        )}
-      </p>
-    </div>
-  `;
-}
-
-
-/* =========================================================
-   HTML ESCAPING
-   ========================================================= */
-
-function escapeHtml(value) {
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return "";
-  }
-
-  return String(value)
-    .replaceAll(
-      "&",
-      "&amp;"
-    )
-    .replaceAll(
-      "<",
-      "&lt;"
-    )
-    .replaceAll(
-      ">",
-      "&gt;"
-    )
-    .replaceAll(
-      '"',
-      "&quot;"
-    )
-    .replaceAll(
-      "'",
-      "&#039;"
-    );
+  onSnapshot(practicesQuery, function(snapshot) {
+    practices = snapshot.docs.map(function(item) {
+      return { id: item.id, ...item.data() };
+    });
+
+    updatePracticeSubscriptions();
+    render();
+  });
+
+  onSnapshot(query(collection(db, "users"), orderBy("displayName", "asc")), function(snapshot) {
+    users = snapshot.docs.filter(function(item) {
+      return item.data().active !== false;
+    });
+    render();
+  });
 }
