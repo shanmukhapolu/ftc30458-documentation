@@ -1,1054 +1,234 @@
-// public/js/practice.js
-
-import {
-  db,
-  auth
-} from "./firebase.js";
-
-import {
-  doc,
-  getDoc,
-  collection,
-  getDocs,
-  query,
-  orderBy
-} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-
-import {
-  formatDate,
-  formatDateTime,
-  initials,
-  showToast
-} from "./ui.js";
-
-const SEASON_ID = "2026-27";
+import { db } from "./firebase.js";
+import { doc, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 let currentUser = null;
-let currentPractice = null;
-let memberLogs = [];
+let practice = null;
+let logs = [];
+let users = [];
+let modalLog = null;
 
+const modal = document.getElementById("log-modal");
+const modalBody = document.getElementById("modal-body");
+const modalTitle = document.getElementById("modal-title");
+const modalFooter = document.getElementById("modal-footer");
 
-/* =========================================================
-   DOM REFERENCES
-   ========================================================= */
+function esc(value) {
+  return String(value || "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
 
-const loadingState =
-  document.getElementById(
-    "practice-loading"
-  );
+function initials(name) {
+  const parts = String(name || "Team Member").trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return String(name || "MM").slice(0,2).toUpperCase();
+}
 
-const practiceContent =
-  document.getElementById(
-    "practice-content"
-  );
+function formatDateKey(key) {
+  const parts = key.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", {month:"long",day:"numeric",year:"numeric"}).format(new Date(parts[0], parts[1]-1, parts[2]));
+}
 
-const errorState =
-  document.getElementById(
-    "practice-error"
-  );
+function openModal(log) {
+  modalLog = log;
+  modalTitle.textContent = log.memberName || "Team member";
+  modal.classList.add("open");
+  document.body.style.overflow = "hidden";
 
-const errorMessage =
-  document.getElementById(
-    "practice-error-message"
-  );
+  const workAreas = Array.isArray(log.workAreas) ? log.workAreas : [];
+  const presets = Array.isArray(log.selectedPresets) ? log.selectedPresets : [];
+  const details = log.details || {};
 
-const practiceTitle =
-  document.getElementById(
-    "practice-title"
-  );
-
-const practiceDate =
-  document.getElementById(
-    "practice-date"
-  );
-
-const practiceNumber =
-  document.getElementById(
-    "practice-number"
-  );
-
-const practiceStatus =
-  document.getElementById(
-    "practice-status"
-  );
-
-const createdByLabel =
-  document.getElementById(
-    "created-by-label"
-  );
-
-const practiceObjective =
-  document.getElementById(
-    "practice-objective"
-  );
-
-const practiceSummary =
-  document.getElementById(
-    "practice-summary"
-  );
-
-const submittedCount =
-  document.getElementById(
-    "submitted-count"
-  );
-
-const documentationProgress =
-  document.getElementById(
-    "documentation-progress"
-  );
-
-const documentationStatus =
-  document.getElementById(
-    "documentation-status"
-  );
-
-const evidenceCount =
-  document.getElementById(
-    "evidence-count"
-  );
-
-const accomplishmentsContainer =
-  document.getElementById(
-    "accomplishments-container"
-  );
-
-const yourLogTitle =
-  document.getElementById(
-    "your-log-title"
-  );
-
-const yourLogDescription =
-  document.getElementById(
-    "your-log-description"
-  );
-
-const memberDocumentation =
-  document.getElementById(
-    "member-documentation"
-  );
-
-const memberCountLabel =
-  document.getElementById(
-    "member-count-label"
-  );
-
-const myLogButtons = [
-  document.getElementById(
-    "my-log-button"
-  ),
-  document.getElementById(
-    "open-log-button"
-  )
-].filter(Boolean);
-
-const evidenceButton =
-  document.getElementById(
-    "portfolio-evidence-button"
-  );
-
-
-/* =========================================================
-   LOAD PRACTICE PAGE
-   ========================================================= */
-
-/**
- * Load a practice page.
- *
- * @param {import("firebase/auth").User} user
- */
-export async function loadPracticePage(user) {
-  currentUser = user;
-
-  const params =
-    new URLSearchParams(
-      window.location.search
-    );
-
-  const practiceId =
-    params.get("id");
-
-  if (!practiceId) {
-    showError(
-      "No practice was specified."
-    );
-
-    return;
+  let html = "";
+  if (workAreas.length) {
+    html += '<div class="log-view-block"><div class="log-view-label">Work areas</div><div class="log-view-tags">' +
+      workAreas.map(function(item){ return '<span class="chip chip-primary">' + esc(item) + '</span>'; }).join("") +
+      '</div></div>';
   }
 
-  try {
-    const practiceReference =
-      doc(
-        db,
-        "seasons",
-        SEASON_ID,
-        "practices",
-        practiceId
-      );
+  if (log.majorAccomplishment) {
+    html += '<div class="log-view-block"><div class="log-view-label">Major accomplishment</div><div class="log-view-text">' + esc(log.majorAccomplishment) + '</div></div>';
+  }
 
-    const practiceSnapshot =
-      await getDoc(
-        practiceReference
-      );
+  if (presets.length) {
+    html += '<div class="log-view-block"><div class="log-view-label">Quick phrases</div><div class="log-view-tags">' +
+      presets.map(function(item){ return '<span class="chip chip-teal">' + esc(item) + '</span>'; }).join("") +
+      '</div></div>';
+  }
 
-    if (!practiceSnapshot.exists()) {
-      showError(
-        "This practice does not exist or is no longer available."
-      );
+  Object.keys(details).forEach(function(key) {
+    const item = details[key];
+    if (!item || typeof item !== "object") return;
 
+    Object.keys(item).forEach(function(field) {
+      if (!item[field]) return;
+      html += '<div class="log-view-block"><div class="log-view-label">' +
+        esc(pretty(field)) + '</div><div class="log-view-text">' +
+        esc(item[field]) + '</div></div>';
+    });
+  });
+
+  if (log.lesson) {
+    html += '<div class="log-view-block"><div class="log-view-label">Lesson learned</div><div class="log-view-text">' + esc(log.lesson) + '</div></div>';
+  }
+
+  if (log.nextStep) {
+    html += '<div class="log-view-block"><div class="log-view-label">Next step</div><div class="log-view-text">' + esc(log.nextStep) + '</div></div>';
+  }
+
+  if (!html) {
+    html = '<div class="empty-state"><p>No documentation has been added yet.</p></div>';
+  }
+
+  modalBody.innerHTML = html;
+
+  if (log.id === currentUser.uid) {
+    modalFooter.innerHTML =
+      '<button id="modal-edit" class="btn btn-primary" type="button">Edit My Log</button>';
+    document.getElementById("modal-edit").addEventListener("click", function() {
+      window.location.href = "./my-log.html?practiceId=" + encodeURIComponent(practice.id);
+    });
+  } else {
+    modalFooter.innerHTML =
+      '<span class="chip chip-neutral">Read only · only the author can edit this log</span>';
+  }
+}
+
+function pretty(field) {
+  return field.replace(/([A-Z])/g, " $1").replace(/^./, function(char){return char.toUpperCase();});
+}
+
+function closeModal() {
+  modal.classList.remove("open");
+  document.body.style.overflow = "";
+  modalLog = null;
+}
+
+function render() {
+  if (!practice) return;
+
+  const dateKey = practice.dateKey || practice.id;
+  document.getElementById("practice-title").textContent = formatDateKey(dateKey);
+  document.getElementById("practice-meta").textContent =
+    "Shared practice record · " + logs.length + " of " + users.length + " members documented.";
+
+  const loggedCount = logs.length;
+  const areaSet = new Set();
+  logs.forEach(function(log) {
+    (log.workAreas || []).forEach(function(area){ areaSet.add(area); });
+  });
+
+  document.getElementById("member-progress").textContent =
+    users.length ? loggedCount + "/" + users.length : String(loggedCount);
+  document.getElementById("work-area-count").textContent = areaSet.size;
+  document.getElementById("accomplishment-count").textContent =
+    logs.filter(function(log){ return Boolean(log.majorAccomplishment); }).length;
+
+  let latest = null;
+  logs.forEach(function(log) {
+    if (!latest) {
+      latest = log;
       return;
     }
+    const a = latest.updatedAt && latest.updatedAt.toMillis ? latest.updatedAt.toMillis() : 0;
+    const b = log.updatedAt && log.updatedAt.toMillis ? log.updatedAt.toMillis() : 0;
+    if (b > a) latest = log;
+  });
 
-    currentPractice = {
-      id: practiceSnapshot.id,
-      ...practiceSnapshot.data()
-    };
+  document.getElementById("last-update").textContent = latest ? "Updated" : "—";
 
-    await loadMemberLogs(
-      practiceId
-    );
+  const accomplishments = document.getElementById("accomplishments");
+  const rows = logs.filter(function(log){ return log.majorAccomplishment; });
 
-    renderPractice();
-    renderMemberDocumentation();
-    renderYourLog();
-    renderDocumentationProgress();
-    renderAccomplishments();
-
-    hideLoading();
-  } catch (error) {
-    console.error(
-      "Failed to load practice:",
-      error
-    );
-
-    showError(
-      "Unable to load this practice. Please try again."
-    );
-
-    showToast(
-      "Unable to load practice.",
-      "error"
-    );
-  }
-}
-
-
-/* =========================================================
-   LOAD MEMBER LOGS
-   ========================================================= */
-
-async function loadMemberLogs(
-  practiceId
-) {
-  const logsReference =
-    collection(
-      db,
-      "seasons",
-      SEASON_ID,
-      "practices",
-      practiceId,
-      "logs"
-    );
-
-  let snapshot;
-
-  try {
-    const logsQuery =
-      query(
-        logsReference,
-        orderBy("submittedAt", "asc")
-      );
-
-    snapshot =
-      await getDocs(logsQuery);
-  } catch (error) {
-    /*
-     * We intentionally fall back to a
-     * plain collection read. This makes the
-     * application tolerant of logs that do
-     * not yet contain submittedAt.
-     */
-    console.warn(
-      "Ordered log query failed; using basic query.",
-      error
-    );
-
-    snapshot =
-      await getDocs(
-        logsReference
-      );
+  if (!rows.length) {
+    accomplishments.innerHTML = '<div class="empty-state"><p>Member accomplishments will appear here as everyone logs their work.</p></div>';
+  } else {
+    accomplishments.innerHTML = rows.map(function(log) {
+      return '<div class="accomplishment-row"><strong>' + esc(log.memberName || "Team member") +
+        '</strong><span>— ' + esc(log.majorAccomplishment) + '</span></div>';
+    }).join("");
   }
 
-  memberLogs =
-    snapshot.docs.map(
-      (document) => ({
-        id: document.id,
-        ...document.data()
-      })
-    );
-}
+  const memberLogs = document.getElementById("member-logs");
 
-
-/* =========================================================
-   RENDER PRACTICE INFORMATION
-   ========================================================= */
-
-function renderPractice() {
-  const number =
-    currentPractice.practiceNumber;
-
-  practiceTitle.textContent =
-    currentPractice.title ||
-    `Practice #${number}`;
-
-  practiceDate.textContent =
-    formatDate(
-      currentPractice.date ||
-      currentPractice.createdAt
-    );
-
-  practiceNumber.textContent =
-    `Practice #${number}`;
-
-  const status =
-    currentPractice.status ||
-    "in-progress";
-
-  practiceStatus.textContent =
-    getStatusLabel(status);
-
-  practiceStatus.className =
-    `chip ${getStatusChipClass(
-      status
-    )}`;
-
-  createdByLabel.textContent =
-    currentPractice.createdByEmail
-      ? `Started by ${currentPractice.createdByEmail}`
-      : "Practice record";
-
-  practiceObjective.textContent =
-    currentPractice.objective?.trim() ||
-    "No objective has been recorded yet.";
-
-  practiceSummary.textContent =
-    currentPractice.summary?.trim() ||
-    "No summary has been recorded yet.";
-}
-
-
-/* =========================================================
-   RENDER DOCUMENTATION PROGRESS
-   ========================================================= */
-
-function renderDocumentationProgress() {
-  const submitted =
-    memberLogs.length;
-
-  /*
-   * Eventually memberCount will come from
-   * the team's active member roster.
-   *
-   * For the moment, use the practice's
-   * stored count when available.
-   */
-  const configuredMemberCount =
-    Number(
-      currentPractice.memberCount || 0
-    );
-
-  const totalMembers =
-    configuredMemberCount > 0
-      ? configuredMemberCount
-      : submitted;
-
-  const completion =
-    totalMembers > 0
-      ? Math.min(
-          100,
-          Math.round(
-            (submitted /
-              totalMembers) *
-              100
-          )
-        )
-      : 0;
-
-  submittedCount.textContent =
-    `${submitted} / ${totalMembers}`;
-
-  documentationProgress.style.width =
-    `${completion}%`;
-
-  documentationStatus.textContent =
-    getStatusLabel(
-      currentPractice.status ||
-        "in-progress"
-    );
-
-  const evidenceItems =
-    countEvidenceItems();
-
-  evidenceCount.textContent =
-    `${evidenceItems} ${
-      evidenceItems === 1
-        ? "item"
-        : "items"
-    }`;
-
-  memberCountLabel.textContent =
-    `${totalMembers} ${
-      totalMembers === 1
-        ? "member"
-        : "members"
-    }`;
-}
-
-
-/* =========================================================
-   RENDER ACCOMPLISHMENTS
-   ========================================================= */
-
-function renderAccomplishments() {
-  const accomplishments =
-    Array.isArray(
-      currentPractice.majorAccomplishments
-    )
-      ? currentPractice.majorAccomplishments
-      : [];
-
-  if (!accomplishments.length) {
-    accomplishmentsContainer.innerHTML = `
-      <p class="summary-placeholder">
-        No accomplishments have been recorded yet.
-        These will eventually be captured as the team
-        closes out the practice.
-      </p>
-    `;
-
+  if (!users.length) {
+    memberLogs.innerHTML = '<div class="card-shell"><div class="empty-state"><p>No team members are registered yet.</p></div></div>';
     return;
   }
 
-  accomplishmentsContainer.innerHTML = `
-    <ul class="summary-list">
-      ${accomplishments
-        .map(
-          (item) => `
-            <li>
-              ${escapeHtml(item)}
-            </li>
-          `
-        )
-        .join("")}
-    </ul>
-  `;
-}
+  memberLogs.innerHTML = users.map(function(user) {
+    const log = logs.find(function(item){ return item.id === user.id; });
+    const mine = user.id === currentUser.uid;
 
+    return '<article class="member-card" data-log-user="' + esc(user.id) + '" style="cursor:pointer">' +
+      '<div class="member-card-top"><div class="avatar">' + esc(initials(user.displayName)) + '</div>' +
+      '<div><div class="member-name">' + esc(user.displayName || "Team Member") + '</div>' +
+      '<div class="member-role">' + esc(user.department || user.role || "Team member") + '</div></div></div>' +
+      '<div class="member-meta">' +
+        (log ? '<span class="chip chip-success">Documented</span>' : '<span class="chip chip-warning">Not yet logged</span>') +
+        (mine ? '<span class="chip chip-primary">You</span>' : '') +
+      '</div>' +
+      '<div class="member-email">' +
+        (log && log.majorAccomplishment ? esc(log.majorAccomplishment) : (mine ? "Click to write your log." : "No documentation yet.")) +
+      '</div>' +
+    '</article>';
+  }).join("");
 
-/* =========================================================
-   RENDER CURRENT USER'S LOG
-   ========================================================= */
+  memberLogs.querySelectorAll("[data-log-user]").forEach(function(card) {
+    card.addEventListener("click", function() {
+      const uid = card.dataset.logUser;
+      const log = logs.find(function(item){ return item.id === uid; });
 
-function renderYourLog() {
-  if (!currentUser) {
-    return;
-  }
-
-  const myLog =
-    memberLogs.find(
-      (log) =>
-        log.id === currentUser.uid ||
-        log.userId === currentUser.uid
-    );
-
-  if (!myLog) {
-    yourLogTitle.textContent =
-      "Your log has not been submitted";
-
-    yourLogDescription.textContent =
-      "Document what you worked on, what changed, what you learned, and what should happen next.";
-
-    return;
-  }
-
-  yourLogTitle.textContent =
-    "Your log has been submitted";
-
-  const submittedText =
-    myLog.submittedAt
-      ? formatDateTime(
-          myLog.submittedAt
-        )
-      : "Saved";
-
-  const workTypes =
-    Array.isArray(
-      myLog.workTypes
-    )
-      ? myLog.workTypes
-      : [];
-
-  const workText =
-    workTypes.length
-      ? workTypes.join(", ")
-      : "Work documented";
-
-  yourLogDescription.textContent =
-    `${workText} · ${submittedText}`;
-}
-
-
-/* =========================================================
-   RENDER MEMBER DOCUMENTATION
-   ========================================================= */
-
-function renderMemberDocumentation() {
-  if (!memberLogs.length) {
-    memberDocumentation.innerHTML = `
-      <div class="card">
-        <div class="empty-state">
-          <div class="empty-icon">
-            ✎
-          </div>
-
-          <h3>
-            No member logs yet
-          </h3>
-
-          <p>
-            Team members' documentation will appear here
-            after they submit their practice logs.
-          </p>
-        </div>
-      </div>
-    `;
-
-    return;
-  }
-
-  memberDocumentation.innerHTML =
-    memberLogs
-      .map(
-        (log) =>
-          createMemberLogCard(log)
-      )
-      .join("");
-
-  initializeMemberLogCards();
-}
-
-
-/* =========================================================
-   MEMBER LOG CARD
-   ========================================================= */
-
-function createMemberLogCard(log) {
-  const name =
-    log.memberName ||
-    log.displayName ||
-    log.userName ||
-    log.memberEmail?.split("@")[0] ||
-    "Team Member";
-
-  const role =
-    log.primaryRole ||
-    log.role ||
-    getRoleSummary(log);
-
-  const initialsText =
-    initials(name);
-
-  const workTypes =
-    Array.isArray(
-      log.workTypes
-    )
-      ? log.workTypes
-      : [];
-
-  const evidence =
-    countLogEvidence(log);
-
-  const submittedText =
-    log.submittedAt
-      ? `Submitted ${formatRelativeOrAbsolute(
-          log.submittedAt
-        )}`
-      : "Submitted";
-
-  const summary =
-    log.summary ||
-    log.description ||
-    "";
-
-  return `
-    <article
-      class="member-doc"
-      data-log-id="${escapeHtml(
-        log.id
-      )}"
-    >
-
-      <button
-        type="button"
-        class="member-doc-summary"
-        aria-expanded="false"
-      >
-
-        <div class="member-doc-avatar">
-          ${escapeHtml(
-            initialsText
-          )}
-        </div>
-
-        <div class="member-doc-main">
-
-          <span class="member-doc-name">
-            ${escapeHtml(name)}
-          </span>
-
-          <span class="member-doc-role">
-            ${escapeHtml(
-              role || "Team member"
-            )}
-          </span>
-
-        </div>
-
-        <div class="member-doc-status">
-          <span class="chip chip-success">
-            Submitted
-          </span>
-        </div>
-
-        <div
-          class="member-doc-chevron"
-          aria-hidden="true"
-        >
-          ↓
-        </div>
-
-      </button>
-
-      <div class="member-doc-details">
-
-        <div
-          class="stack"
-          style="padding-top: 15px;"
-        >
-
-          <div>
-            <div class="overview-label">
-              Work areas
-            </div>
-
-            ${
-              workTypes.length
-                ? `
-                  <div
-                    class="row wrap"
-                    style="gap: 6px;"
-                  >
-                    ${workTypes
-                      .map(
-                        (type) => `
-                          <span class="chip chip-accent">
-                            ${escapeHtml(
-                              type
-                            )}
-                          </span>
-                        `
-                      )
-                      .join("")}
-                  </div>
-                `
-                : `
-                  <div class="muted tiny">
-                    No work areas recorded.
-                  </div>
-                `
-            }
-          </div>
-
-          <div>
-            <div class="overview-label">
-              Summary
-            </div>
-
-            <p class="overview-value">
-              ${
-                summary
-                  ? escapeHtml(
-                      summary
-                    )
-                  : "No summary recorded."
-              }
-            </p>
-          </div>
-
-          <div>
-            <div class="overview-label">
-              Evidence
-            </div>
-
-            <p class="overview-value">
-              ${evidence}
-              ${
-                evidence === 1
-                  ? "item"
-                  : "items"
-              } attached
-            </p>
-          </div>
-
-          <div class="muted tiny">
-            ${escapeHtml(
-              submittedText
-            )}
-          </div>
-
-        </div>
-
-      </div>
-
-    </article>
-  `;
-}
-
-
-/* =========================================================
-   MEMBER CARD INTERACTIONS
-   ========================================================= */
-
-function initializeMemberLogCards() {
-  const cards =
-    memberDocumentation.querySelectorAll(
-      ".member-doc"
-    );
-
-  cards.forEach((card) => {
-    const trigger =
-      card.querySelector(
-        ".member-doc-summary"
-      );
-
-    if (!trigger) {
-      return;
-    }
-
-    trigger.addEventListener(
-      "click",
-      () => {
-        const expanded =
-          card.classList.toggle(
-            "expanded"
-          );
-
-        trigger.setAttribute(
-          "aria-expanded",
-          String(expanded)
-        );
+      if (uid === currentUser.uid && log) {
+        openModal(log);
+      } else if (uid === currentUser.uid) {
+        window.location.href = "./my-log.html?practiceId=" + encodeURIComponent(practice.id);
+      } else if (log) {
+        openModal(log);
       }
-    );
+    });
   });
 }
 
+export function initializePracticePage(user) {
+  currentUser = user;
+  const params = new URLSearchParams(window.location.search);
+  const practiceId = params.get("id");
 
-/* =========================================================
-   EVIDENCE COUNTING
-   ========================================================= */
-
-function countEvidenceItems() {
-  return memberLogs.reduce(
-    (total, log) =>
-      total +
-      countLogEvidence(log),
-    0
-  );
-}
-
-function countLogEvidence(log) {
-  let count = 0;
-
-  if (
-    Array.isArray(
-      log.evidence
-    )
-  ) {
-    count +=
-      log.evidence.length;
-  }
-
-  if (
-    Array.isArray(
-      log.attachments
-    )
-  ) {
-    count +=
-      log.attachments.length;
-  }
-
-  if (
-    Array.isArray(
-      log.photos
-    )
-  ) {
-    count +=
-      log.photos.length;
-  }
-
-  if (
-    Array.isArray(
-      log.videos
-    )
-  ) {
-    count +=
-      log.videos.length;
-  }
-
-  return count;
-}
-
-
-/* =========================================================
-   ROLE SUMMARY
-   ========================================================= */
-
-function getRoleSummary(log) {
-  const roles = [];
-
-  if (log.primaryRole) {
-    roles.push(
-      log.primaryRole
-    );
-  }
-
-  if (
-    Array.isArray(
-      log.workTypes
-    )
-  ) {
-    roles.push(
-      ...log.workTypes
-    );
-  }
-
-  return [
-    ...new Set(roles)
-  ].join(" · ");
-}
-
-
-/* =========================================================
-   NAVIGATION
-   ========================================================= */
-
-function openMyLog() {
-  if (!currentPractice?.id) {
+  if (!practiceId) {
+    document.getElementById("practice-title").textContent = "Practice not found";
     return;
   }
 
-  window.location.href =
-    `./my-log.html?practiceId=${encodeURIComponent(
-      currentPractice.id
-    )}`;
-}
+  document.getElementById("edit-my-log").addEventListener("click", function() {
+    window.location.href = "./my-log.html?practiceId=" + encodeURIComponent(practiceId);
+  });
 
-function openEvidence() {
-  if (!currentPractice?.id) {
-    return;
-  }
+  document.getElementById("close-modal").addEventListener("click", closeModal);
+  modal.addEventListener("click", function(event) {
+    if (event.target === modal) closeModal();
+  });
 
-  window.location.href =
-    `./evidence.html?practiceId=${encodeURIComponent(
-      currentPractice.id
-    )}`;
-}
+  document.addEventListener("keydown", function(event) {
+    if (event.key === "Escape") closeModal();
+  });
 
-myLogButtons.forEach(
-  (button) => {
-    button.addEventListener(
-      "click",
-      openMyLog
-    );
-  }
-);
+  onSnapshot(doc(db, "practices", practiceId), function(snapshot) {
+    if (!snapshot.exists()) {
+      document.getElementById("practice-title").textContent = "Practice not found";
+      return;
+    }
+    practice = { id: snapshot.id, ...snapshot.data() };
+    render();
+  });
 
-evidenceButton?.addEventListener(
-  "click",
-  openEvidence
-);
+  onSnapshot(collection(db, "practices", practiceId, "logs"), function(snapshot) {
+    logs = snapshot.docs.map(function(item){ return { id: item.id, ...item.data() }; });
+    render();
+  });
 
-
-/* =========================================================
-   STATUS HELPERS
-   ========================================================= */
-
-function getStatusLabel(status) {
-  switch (status) {
-    case "in-progress":
-      return "In progress";
-
-    case "ready":
-      return "Ready to close";
-
-    case "closed":
-      return "Closed";
-
-    default:
-      return "Unknown";
-  }
-}
-
-function getStatusChipClass(status) {
-  switch (status) {
-    case "in-progress":
-      return "chip-accent";
-
-    case "ready":
-      return "chip-warning";
-
-    case "closed":
-      return "chip-success";
-
-    default:
-      return "chip-neutral";
-  }
-}
-
-
-/* =========================================================
-   DATE HELPERS
-   ========================================================= */
-
-function formatRelativeOrAbsolute(
-  value
-) {
-  if (!value) {
-    return "just now";
-  }
-
-  let date;
-
-  if (
-    typeof value === "object" &&
-    typeof value.toDate ===
-      "function"
-  ) {
-    date = value.toDate();
-  } else if (
-    value instanceof Date
-  ) {
-    date = value;
-  } else {
-    date = new Date(value);
-  }
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return "recently";
-  }
-
-  const age =
-    Date.now() -
-    date.getTime();
-
-  const minutes =
-    Math.floor(
-      age / 60000
-    );
-
-  if (minutes < 1) {
-    return "just now";
-  }
-
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-
-  const hours =
-    Math.floor(
-      minutes / 60
-    );
-
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-
-  return formatDate(
-    date
-  );
-}
-
-
-/* =========================================================
-   ERROR / VISIBILITY
-   ========================================================= */
-
-function hideLoading() {
-  loadingState.classList.add(
-    "hidden"
-  );
-
-  practiceContent.classList.remove(
-    "hidden"
-  );
-
-  errorState.classList.add(
-    "hidden"
-  );
-}
-
-function showError(message) {
-  loadingState.classList.add(
-    "hidden"
-  );
-
-  practiceContent.classList.add(
-    "hidden"
-  );
-
-  errorState.classList.remove(
-    "hidden"
-  );
-
-  errorMessage.textContent =
-    message;
-}
-
-
-/* =========================================================
-   HTML ESCAPING
-   ========================================================= */
-
-function escapeHtml(value) {
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return "";
-  }
-
-  return String(value)
-    .replaceAll(
-      "&",
-      "&amp;"
-    )
-    .replaceAll(
-      "<",
-      "&lt;"
-    )
-    .replaceAll(
-      ">",
-      "&gt;"
-    )
-    .replaceAll(
-      '"',
-      "&quot;"
-    )
-    .replaceAll(
-      "'",
-      "&#039;"
-    );
+  onSnapshot(query(collection(db, "users"), orderBy("displayName", "asc")), function(snapshot) {
+    users = snapshot.docs.filter(function(item){ return item.data().active !== false; }).map(function(item){
+      return { id: item.id, ...item.data() };
+    });
+    render();
+  });
 }
