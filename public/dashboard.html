@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>Dashboard | FTC 30458 Engineering Log</title>
+
+  <meta
+    name="description"
+    content="FTC 30458 MasterMinds Engineering Log dashboard."
+  />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="./css/app.css" />
+
+  <style>
+    .welcome {
+      margin-bottom: 28px;
+    }
+
+    .welcome h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 28px;
+      line-height: 1.15;
+      letter-spacing: -0.045em;
+    }
+
+    .welcome p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    .action-button {
+      min-height: 40px;
+      padding: 0 15px;
+      border-radius: 10px;
+      background: var(--accent);
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition:
+        background 0.16s ease,
+        transform 0.16s ease,
+        box-shadow 0.16s ease;
+    }
+
+    .action-button:hover {
+      background: var(--accent-dark);
+      box-shadow: 0 8px 18px rgba(139, 30, 63, 0.16);
+      transform: translateY(-1px);
+    }
+
+    .action-button.secondary {
+      background: white;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    .action-button.secondary:hover {
+      background: var(--surface-soft);
+      color: var(--text);
+      box-shadow: none;
+    }
+
+    .current-practice-copy {
+      min-width: 0;
+    }
+
+    .current-practice-copy strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .current-practice-copy span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .practice-status {
+      padding: 15px;
+      border-radius: var(--radius);
+      background: var(--accent-soft);
+      margin-bottom: 16px;
+    }
+
+    .practice-status-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .status-badge {
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: white;
+      color: var(--accent);
+      font-size: 9px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .practice-progress {
+      height: 7px;
+      margin-top: 13px;
+      border-radius: 999px;
+      background: rgba(139, 30, 63, 0.12);
+      overflow: hidden;
+    }
+
+    .practice-progress-bar {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--accent);
+      transition: width 0.25s ease;
+    }
+
+    .member-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .member-row {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f1f3;
+    }
+
+    .member-row:last-child {
+      border-bottom: 0;
+    }
+
+    .member-avatar {
+      width: 30px;
+      height: 30px;
+      flex: 0 0 30px;
+      border-radius: 50%;
+      background: var(--surface-muted);
+      color: var(--text-secondary);
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .member-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .member-copy strong {
+      display: block;
+      font-size: 12px;
+    }
+
+    .member-copy span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .member-status {
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .member-status.done {
+      color: var(--success);
+    }
+
+    .member-status.pending {
+      color: var(--warning);
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns:
+        minmax(0, 1.3fr)
+        minmax(310px, 0.7fr);
+      gap: 18px;
+    }
+
+    .activity-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .activity-row {
+      display: flex;
+      gap: 11px;
+      padding: 13px 0;
+      border-bottom: 1px solid #f0f1f3;
+    }
+
+    .activity-row:last-child {
+      border-bottom: 0;
+    }
+
+    .activity-dot {
+      width: 8px;
+      height: 8px;
+      margin-top: 5px;
+      flex: 0 0 8px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .activity-copy {
+      min-width: 0;
+    }
+
+    .activity-copy strong {
+      display: block;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .activity-copy span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .empty-dashboard {
+      padding: 30px 10px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1100px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .welcome h2 {
+        font-size: 24px;
+      }
+
+      .practice-status-top {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-shell">
+
+    <!-- =====================================
+         SIDEBAR
+         ====================================== -->
+
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-row">
+          <div class="brand-mark">MM</div>
+
+          <div class="brand-text">
+            <strong>MasterMinds</strong>
+            <span>FTC 30458</span>
+          </div>
+        </div>
+
+        <div class="season-pill">
+          2026–27 Engineering Log
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+
+        <section class="nav-section">
+          <p class="nav-label">Workspace</p>
+
+          <ul class="nav-list">
+
+            <li>
+              <a
+                class="nav-link active"
+                href="./dashboard.html"
+              >
+                <span class="nav-icon">⌂</span>
+                <span>Dashboard</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link"
+                href="./practices.html"
+              >
+                <span class="nav-icon">▣</span>
+                <span>Practices</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link"
+                href="./my-log.html"
+              >
+                <span class="nav-icon">✎</span>
+                <span>My Logs</span>
+              </a>
+            </li>
+
+          </ul>
+        </section>
+
+        <section class="nav-section">
+          <p class="nav-label">Engineering</p>
+
+          <ul class="nav-list">
+
+            <li>
+              <a
+                class="nav-link"
+                href="./projects.html"
+              >
+                <span class="nav-icon">◇</span>
+                <span>Projects</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link"
+                href="./timeline.html"
+              >
+                <span class="nav-icon">◷</span>
+                <span>Timeline</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link"
+                href="./decisions.html"
+              >
+                <span class="nav-icon">◆</span>
+                <span>Decisions</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link"
+                href="./tests.html"
+              >
+                <span class="nav-icon">✓</span>
+                <span>Testing</span>
+              </a>
+            </li>
+
+          </ul>
+        </section>
+
+        <section class="nav-section">
+          <p class="nav-label">Portfolio</p>
+
+          <ul class="nav-list">
+
+            <li>
+              <a
+                class="nav-link"
+                href="./evidence.html"
+              >
+                <span class="nav-icon">▤</span>
+                <span>Evidence</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link"
+                href="./portfolio.html"
+              >
+                <span class="nav-icon">□</span>
+                <span>Portfolio</span>
+              </a>
+            </li>
+
+          </ul>
+        </section>
+
+        <section class="nav-section">
+          <p class="nav-label">Team</p>
+
+          <ul class="nav-list">
+
+            <li>
+              <a
+                class="nav-link"
+                href="./team.html"
+              >
+                <span class="nav-icon">◎</span>
+                <span>Team</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link"
+                href="./settings.html"
+              >
+                <span class="nav-icon">⚙</span>
+                <span>Settings</span>
+              </a>
+            </li>
+
+          </ul>
+        </section>
+
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-card">
+
+          <div
+            class="avatar"
+            id="user-avatar"
+          >
+            MM
+          </div>
+
+          <div class="user-info">
+            <strong id="user-name">
+              Team Member
+            </strong>
+
+            <span id="user-email">
+              Loading…
+            </span>
+          </div>
+
+          <button
+            id="logout-button"
+            class="logout-button"
+            type="button"
+            title="Sign out"
+            aria-label="Sign out"
+          >
+            ↪
+          </button>
+
+        </div>
+      </div>
+    </aside>
+
+    <!-- =====================================
+         MAIN
+         ====================================== -->
+
+    <main class="main">
+
+      <header class="topbar">
+
+        <div class="page-context">
+
+          <p>
+            Engineering Log
+          </p>
+
+          <h1>
+            Dashboard
+          </h1>
+
+        </div>
+
+        <div class="topbar-actions">
+
+          <select
+            id="season-select"
+            class="season-select"
+            aria-label="Season"
+          >
+            <option value="2026-27">
+              2026–27 Season
+            </option>
+          </select>
+
+        </div>
+
+      </header>
+
+      <div class="content">
+
+        <!-- ===================================
+             WELCOME
+             ==================================== -->
+
+        <section class="welcome">
+
+          <h2 id="welcome-heading">
+            Welcome back.
+          </h2>
+
+          <p>
+            Keep the team's engineering history accurate,
+            organized, and useful.
+          </p>
+
+        </section>
+
+        <!-- ===================================
+             QUICK ACTIONS
+             ==================================== -->
+
+        <section class="quick-actions">
+
+          <button
+            id="new-log-button"
+            class="action-button"
+            type="button"
+          >
+            + Log Today's Work
+          </button>
+
+          <button
+            id="view-practice-button"
+            class="action-button secondary"
+            type="button"
+          >
+            View Today's Practice
+          </button>
+
+        </section>
+
+        <!-- ===================================
+             STATISTICS
+             ==================================== -->
+
+        <section class="stats-grid">
+
+          <article class="stat-card">
+            <div class="stat-label">
+              Practices Logged
+            </div>
+
+            <div
+              id="stat-practices"
+              class="stat-value"
+            >
+              —
+            </div>
+
+            <div class="stat-meta">
+              2026–27 season
+            </div>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-label">
+              Your Entries
+            </div>
+
+            <div
+              id="stat-your-entries"
+              class="stat-value"
+            >
+              —
+            </div>
+
+            <div class="stat-meta">
+              This season
+            </div>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-label">
+              Engineering Decisions
+            </div>
+
+            <div
+              id="stat-decisions"
+              class="stat-value"
+            >
+              —
+            </div>
+
+            <div class="stat-meta">
+              Team documented
+            </div>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-label">
+              Portfolio Evidence
+            </div>
+
+            <div
+              id="stat-evidence"
+              class="stat-value"
+            >
+              —
+            </div>
+
+            <div class="stat-meta">
+              Flagged items
+            </div>
+          </article>
+
+        </section>
+
+        <!-- ===================================
+             DASHBOARD GRID
+             ==================================== -->
+
+        <section class="dashboard-grid">
+
+          <!-- CURRENT PRACTICE -->
+
+          <article class="card">
+
+            <div class="card-header">
+
+              <h3>
+                Current Practice
+              </h3>
+
+              <span id="current-practice-date">
+                —
+              </span>
+
+            </div>
+
+            <div class="card-body">
+
+              <div class="practice-status">
+
+                <div class="practice-status-top">
+
+                  <div
+                    class="current-practice-copy"
+                  >
+                    <strong
+                      id="current-practice-title"
+                    >
+                      No active practice
+                    </strong>
+
+                    <span
+                      id="current-practice-description"
+                    >
+                      No practice is currently in progress.
+                    </span>
+                  </div>
+
+                  <div
+                    id="current-practice-badge"
+                    class="status-badge"
+                  >
+                    NO ACTIVE PRACTICE
+                  </div>
+
+                </div>
+
+                <div class="practice-progress">
+
+                  <div
+                    id="current-practice-progress"
+                    class="practice-progress-bar"
+                  ></div>
+
+                </div>
+
+              </div>
+
+              <div
+                id="dashboard-member-list"
+                class="member-list"
+              >
+
+                <div class="empty-dashboard">
+                  Current practice member
+                  documentation will appear here.
+                </div>
+
+              </div>
+
+            </div>
+
+          </article>
+
+          <!-- RECENT ACTIVITY -->
+
+          <article class="card">
+
+            <div class="card-header">
+
+              <h3>
+                Recent Activity
+              </h3>
+
+              <span>
+                Latest
+              </span>
+
+            </div>
+
+            <div class="card-body">
+
+              <div
+                id="activity-list"
+                class="activity-list"
+              >
+
+                <div class="empty-dashboard">
+                  Loading recent activity…
+                </div>
+
+              </div>
+
+            </div>
+
+          </article>
+
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- =====================================
+       JAVASCRIPT
+       ====================================== -->
+
+  <script type="module">
+
+    import {
+      requireAuth,
+      attachLogout,
+      getDisplayName,
+      getInitials
+    } from "./js/auth.js";
+
+    import {
+      initializeModals
+    } from "./js/ui.js";
+
+    import {
+      initializeDashboard
+    } from "./js/dashboard.js";
+
+    const userNameElement =
+      document.getElementById(
+        "user-name"
+      );
+
+    const userEmailElement =
+      document.getElementById(
+        "user-email"
+      );
+
+    const userAvatarElement =
+      document.getElementById(
+        "user-avatar"
+      );
+
+    const welcomeHeading =
+      document.getElementById(
+        "welcome-heading"
+      );
+
+    requireAuth(async (user) => {
+
+      const displayName =
+        getDisplayName(user);
+
+      const firstName =
+        displayName
+          .split(" ")[0];
+
+      userNameElement.textContent =
+        displayName;
+
+      userEmailElement.textContent =
+        user.email ||
+        "Team Member";
+
+      userAvatarElement.textContent =
+        getInitials(user);
+
+      welcomeHeading.textContent =
+        `Welcome back, ${firstName}.`;
+
+      await initializeDashboard(
+        user
+      );
+
+    });
+
+    attachLogout(
+      "#logout-button"
+    );
+
+    initializeModals();
+
+    /*
+     * Quick actions
+     */
+
+    document
+      .getElementById(
+        "new-log-button"
+      )
+      .addEventListener(
+        "click",
+        () => {
+          window.location.href =
+            "./my-log.html";
+        }
+      );
+
+    document
+      .getElementById(
+        "view-practice-button"
+      )
+      .addEventListener(
+        "click",
+        () => {
+          window.location.href =
+            "./practices.html";
+        }
+      );
+
+  </script>
+
+</body>
+</html>

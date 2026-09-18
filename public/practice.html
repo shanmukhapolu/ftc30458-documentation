@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>Practice | FTC 30458 Engineering Log</title>
+
+  <meta
+    name="description"
+    content="Detailed engineering practice record for FTC 30458 MasterMinds."
+  />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="./css/app.css" />
+
+  <style>
+    /* =========================================
+       PRACTICE HEADER
+       ========================================= */
+
+    .practice-hero {
+      margin-bottom: 24px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 15px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      transition: color var(--transition-fast);
+    }
+
+    .back-link:hover {
+      color: var(--accent);
+    }
+
+    .practice-heading-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .practice-heading-copy {
+      min-width: 0;
+    }
+
+    .practice-heading-copy h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 31px;
+      line-height: 1.05;
+      letter-spacing: -0.05em;
+    }
+
+    .practice-heading-meta {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 11px;
+      flex-wrap: wrap;
+    }
+
+    .practice-heading-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* =========================================
+       OVERVIEW
+       ========================================= */
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns:
+        minmax(0, 1.4fr)
+        minmax(280px, 0.6fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .overview-block {
+      min-height: 110px;
+    }
+
+    .overview-label {
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .overview-value {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .progress-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+    }
+
+    .progress-summary-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .progress-summary-row span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .progress-summary-row strong {
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .large-progress {
+      height: 8px;
+      border-radius: 999px;
+      background: #eceef1;
+      overflow: hidden;
+    }
+
+    .large-progress span {
+      display: block;
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--accent);
+      transition: width 0.25s ease;
+    }
+
+    /* =========================================
+       SECTION HEADERS
+       ========================================= */
+
+    .content-section {
+      margin-top: 28px;
+    }
+
+    .content-section-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 11px;
+    }
+
+    .content-section-header h3 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 15px;
+      letter-spacing: -0.025em;
+    }
+
+    .content-section-header p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    /* =========================================
+       MEMBER DOCUMENTATION
+       ========================================= */
+
+    .member-doc-list {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .member-doc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition:
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast);
+    }
+
+    .member-doc:hover {
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .member-doc-summary {
+      width: 100%;
+      padding: 15px 17px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .member-doc-summary:hover {
+      background: var(--surface-soft);
+    }
+
+    .member-doc-avatar {
+      width: 36px;
+      height: 36px;
+      flex: 0 0 36px;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent);
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .member-doc-main {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .member-doc-name {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .member-doc-role {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .member-doc-status {
+      flex: 0 0 auto;
+    }
+
+    .member-doc-chevron {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      color: var(--muted-light);
+      font-size: 13px;
+      transition: transform var(--transition-fast);
+    }
+
+    .member-doc.expanded
+      .member-doc-chevron {
+      transform: rotate(180deg);
+    }
+
+    .member-doc-details {
+      display: none;
+      padding: 0 17px 17px 65px;
+      border-top: 1px solid var(--border);
+    }
+
+    .member-doc.expanded
+      .member-doc-details {
+      display: block;
+    }
+
+    .member-doc-placeholder {
+      padding-top: 15px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    /* =========================================
+       CURRENT USER LOG CARD
+       ========================================= */
+
+    .your-log-card {
+      border: 1px solid var(--accent-border);
+      background:
+        linear-gradient(
+          135deg,
+          rgba(139, 30, 63, 0.045),
+          transparent 55%
+        ),
+        var(--surface);
+    }
+
+    .your-log-body {
+      padding: 20px;
+    }
+
+    .your-log-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .your-log-status h4 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 15px;
+      letter-spacing: -0.025em;
+    }
+
+    .your-log-status p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .your-log-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* =========================================
+       TEAM SUMMARY
+       ========================================= */
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .summary-body {
+      padding: 18px;
+    }
+
+    .summary-placeholder {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .summary-list {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--text-secondary);
+      font-size: 11px;
+      line-height: 1.7;
+    }
+
+    /* =========================================
+       LOADING / ERROR
+       ========================================= */
+
+    .practice-page-loading {
+      min-height: 340px;
+      display: grid;
+      place-items: center;
+    }
+
+    /* =========================================
+       RESPONSIVE
+       ========================================= */
+
+    @media (max-width: 900px) {
+      .overview-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .practice-heading-row {
+        flex-direction: column;
+      }
+
+      .practice-heading-copy h2 {
+        font-size: 27px;
+      }
+
+      .practice-heading-actions {
+        width: 100%;
+      }
+
+      .practice-heading-actions .btn {
+        flex: 1;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .member-doc-details {
+        padding-left: 17px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-shell">
+
+    <!-- =====================================
+         SIDEBAR
+         ====================================== -->
+
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-row">
+          <div class="brand-mark">MM</div>
+
+          <div class="brand-text">
+            <strong>MasterMinds</strong>
+            <span>FTC 30458</span>
+          </div>
+        </div>
+
+        <div class="season-pill">
+          2026–27 Engineering Log
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+
+        <section class="nav-section">
+          <p class="nav-label">Workspace</p>
+
+          <ul class="nav-list">
+            <li>
+              <a
+                class="nav-link"
+                href="./dashboard.html"
+              >
+                <span class="nav-icon">⌂</span>
+                <span>Dashboard</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link active"
+                href="./practices.html"
+              >
+                <span class="nav-icon">▣</span>
+                <span>Practices</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link"
+                href="./my-log.html"
+              >
+                <span class="nav-icon">✎</span>
+                <span>My Logs</span>
+              </a>
+            </li>
+          </ul>
+        </section>
+
+        <section class="nav-section">
+          <p class="nav-label">Engineering</p>
+
+          <ul class="nav-list">
+            <li>
+              <a
+                class="nav-link"
+                href="./projects.html"
+              >
+                <span class="nav-icon">◇</span>
+                <span>Projects</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link"
+                href="./timeline.html"
+              >
+                <span class="nav-icon">◷</span>
+                <span>Timeline</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link"
+                href="./decisions.html"
+              >
+                <span class="nav-icon">◆</span>
+                <span>Decisions</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link"
+                href="./tests.html"
+              >
+                <span class="nav-icon">✓</span>
+                <span>Testing</span>
+              </a>
+            </li>
+          </ul>
+        </section>
+
+        <section class="nav-section">
+          <p class="nav-label">Portfolio</p>
+
+          <ul class="nav-list">
+            <li>
+              <a
+                class="nav-link"
+                href="./evidence.html"
+              >
+                <span class="nav-icon">▤</span>
+                <span>Evidence</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link"
+                href="./portfolio.html"
+              >
+                <span class="nav-icon">□</span>
+                <span>Portfolio</span>
+              </a>
+            </li>
+          </ul>
+        </section>
+
+        <section class="nav-section">
+          <p class="nav-label">Team</p>
+
+          <ul class="nav-list">
+            <li>
+              <a
+                class="nav-link"
+                href="./team.html"
+              >
+                <span class="nav-icon">◎</span>
+                <span>Team</span>
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="nav-link"
+                href="./settings.html"
+              >
+                <span class="nav-icon">⚙</span>
+                <span>Settings</span>
+              </a>
+            </li>
+          </ul>
+        </section>
+
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-card">
+          <div
+            class="avatar"
+            id="user-avatar"
+          >
+            MM
+          </div>
+
+          <div class="user-info">
+            <strong id="user-name">
+              Team Member
+            </strong>
+
+            <span id="user-email">
+              Loading…
+            </span>
+          </div>
+
+          <button
+            id="logout-button"
+            class="logout-button"
+            type="button"
+            title="Sign out"
+            aria-label="Sign out"
+          >
+            ↪
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- =====================================
+         MAIN
+         ====================================== -->
+
+    <main class="main">
+
+      <header class="topbar">
+        <div class="page-context">
+          <p>Engineering Log</p>
+          <h1>Practice</h1>
+        </div>
+
+        <div class="topbar-actions">
+          <select
+            id="season-select"
+            class="season-select"
+            aria-label="Season"
+          >
+            <option value="2026-27">
+              2026–27 Season
+            </option>
+          </select>
+        </div>
+      </header>
+
+      <div class="content">
+
+        <!-- ===================================
+             LOADING STATE
+             ==================================== -->
+
+        <div
+          id="practice-loading"
+          class="card practice-page-loading"
+        >
+          <div class="loading">
+            <div class="spinner"></div>
+            Loading practice…
+          </div>
+        </div>
+
+        <!-- ===================================
+             PRACTICE CONTENT
+             ==================================== -->
+
+        <div
+          id="practice-content"
+          class="hidden"
+        >
+
+          <section class="practice-hero">
+
+            <a
+              class="back-link"
+              href="./practices.html"
+            >
+              ← Back to practices
+            </a>
+
+            <div class="practice-heading-row">
+
+              <div class="practice-heading-copy">
+
+                <p
+                  id="practice-eyebrow"
+                  class="eyebrow"
+                >
+                  2026–27 Engineering Log
+                </p>
+
+                <h2 id="practice-title">
+                  Practice
+                </h2>
+
+                <div class="practice-heading-meta">
+
+                  <span id="practice-date">
+                    —
+                  </span>
+
+                  <span>•</span>
+
+                  <span id="practice-number">
+                    Practice —
+                  </span>
+
+                  <span>•</span>
+
+                  <span
+                    id="practice-status"
+                    class="chip chip-accent"
+                  >
+                    In progress
+                  </span>
+
+                </div>
+
+              </div>
+
+              <div class="practice-heading-actions">
+
+                <button
+                  id="my-log-button"
+                  class="btn btn-primary"
+                  type="button"
+                >
+                  Log My Work
+                </button>
+
+                <button
+                  id="portfolio-evidence-button"
+                  class="btn btn-secondary"
+                  type="button"
+                >
+                  View Evidence
+                </button>
+
+              </div>
+
+            </div>
+
+          </section>
+
+          <!-- =================================
+               OVERVIEW
+               ================================== -->
+
+          <section class="overview-grid">
+
+            <article class="card">
+              <div class="card-header">
+                <h3>Practice Overview</h3>
+
+                <span
+                  id="created-by-label"
+                  class="card-header-meta"
+                >
+                  —
+                </span>
+              </div>
+
+              <div class="card-body">
+
+                <div
+                  class="overview-block"
+                  style="margin-bottom: 19px;"
+                >
+                  <div class="overview-label">
+                    Objective
+                  </div>
+
+                  <p
+                    id="practice-objective"
+                    class="overview-value"
+                  >
+                    No objective has been recorded yet.
+                  </p>
+                </div>
+
+                <div class="overview-block">
+                  <div class="overview-label">
+                    Team Summary
+                  </div>
+
+                  <p
+                    id="practice-summary"
+                    class="overview-value"
+                  >
+                    No summary has been recorded yet.
+                  </p>
+                </div>
+
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-header">
+                <h3>Documentation Progress</h3>
+              </div>
+
+              <div class="card-body">
+
+                <div class="progress-summary">
+
+                  <div class="progress-summary-row">
+                    <span>
+                      Member logs submitted
+                    </span>
+
+                    <strong id="submitted-count">
+                      0 / 0
+                    </strong>
+                  </div>
+
+                  <div class="large-progress">
+                    <span
+                      id="documentation-progress"
+                    ></span>
+                  </div>
+
+                  <div class="progress-summary-row">
+                    <span>
+                      Practice status
+                    </span>
+
+                    <strong
+                      id="documentation-status"
+                    >
+                      In progress
+                    </strong>
+                  </div>
+
+                  <div
+                    class="divider"
+                  ></div>
+
+                  <div class="progress-summary-row">
+                    <span>
+                      Engineering evidence
+                    </span>
+
+                    <strong
+                      id="evidence-count"
+                    >
+                      0 items
+                    </strong>
+                  </div>
+
+                </div>
+
+              </div>
+            </article>
+
+          </section>
+
+          <!-- =================================
+               TEAM ACCOMPLISHMENTS
+               ================================== -->
+
+          <section class="content-section">
+
+            <div class="content-section-header">
+              <div>
+                <h3>
+                  Practice Accomplishments
+                </h3>
+
+                <p>
+                  What the team collectively accomplished during this practice.
+                </p>
+              </div>
+            </div>
+
+            <article class="summary-card">
+              <div
+                id="accomplishments-container"
+                class="summary-body"
+              >
+                <p class="summary-placeholder">
+                  No accomplishments have been recorded yet.
+                </p>
+              </div>
+            </article>
+
+          </section>
+
+          <!-- =================================
+               CURRENT USER
+               ================================== -->
+
+          <section class="content-section">
+
+            <div class="content-section-header">
+              <div>
+                <h3>
+                  Your Documentation
+                </h3>
+
+                <p>
+                  Your contribution to this practice.
+                </p>
+              </div>
+            </div>
+
+            <article class="summary-card your-log-card">
+
+              <div class="your-log-body">
+
+                <div class="your-log-status">
+
+                  <div>
+                    <h4 id="your-log-title">
+                      Your log has not been submitted
+                    </h4>
+
+                    <p id="your-log-description">
+                      Document what you worked on,
+                      what changed, what you learned,
+                      and what should happen next.
+                    </p>
+                  </div>
+
+                  <div class="your-log-actions">
+
+                    <button
+                      id="open-log-button"
+                      class="btn btn-primary"
+                      type="button"
+                    >
+                      Log My Work
+                    </button>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </article>
+
+          </section>
+
+          <!-- =================================
+               MEMBER DOCUMENTATION
+               ================================== -->
+
+          <section class="content-section">
+
+            <div class="content-section-header">
+
+              <div>
+                <h3>
+                  Team Member Documentation
+                </h3>
+
+                <p>
+                  Every member contributes their own record
+                  to the shared practice.
+                </p>
+              </div>
+
+              <span
+                id="member-count-label"
+                class="muted tiny"
+              >
+                0 members
+              </span>
+
+            </div>
+
+            <div
+              id="member-documentation"
+              class="member-doc-list"
+            >
+              <!-- Populated by practice.js -->
+            </div>
+
+          </section>
+
+        </div>
+
+        <!-- ===================================
+             ERROR STATE
+             ==================================== -->
+
+        <div
+          id="practice-error"
+          class="card hidden"
+        >
+          <div class="empty-state">
+
+            <div class="empty-icon">
+              !
+            </div>
+
+            <h3>
+              Practice could not be loaded
+            </h3>
+
+            <p id="practice-error-message">
+              Something went wrong while loading
+              this practice.
+            </p>
+
+            <div style="margin-top: 18px;">
+              <a
+                class="btn btn-secondary"
+                href="./practices.html"
+              >
+                Back to Practices
+              </a>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+
+    import {
+      requireAuth,
+      attachLogout,
+      getDisplayName,
+      getInitials
+    } from "./js/auth.js";
+
+    import {
+      initializeModals
+    } from "./js/ui.js";
+
+    import {
+      loadPracticePage
+    } from "./js/practice.js";
+
+    const userNameElement =
+      document.getElementById("user-name");
+
+    const userEmailElement =
+      document.getElementById("user-email");
+
+    const userAvatarElement =
+      document.getElementById("user-avatar");
+
+    requireAuth(async (user) => {
+
+      const displayName =
+        getDisplayName(user);
+
+      userNameElement.textContent =
+        displayName;
+
+      userEmailElement.textContent =
+        user.email || "Team Member";
+
+      userAvatarElement.textContent =
+        getInitials(user);
+
+      await loadPracticePage(user);
+
+    });
+
+    attachLogout(
+      "#logout-button"
+    );
+
+    initializeModals();
+
+  </script>
+
+</body>
+</html>

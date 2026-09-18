@@ -1,0 +1,19 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /*
+     * Base rule:
+     * Only authenticated Firebase users can access
+     * any Firestore document.
+     *
+     * More specific permissions will be added as
+     * we build the actual application.
+     */
+
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
