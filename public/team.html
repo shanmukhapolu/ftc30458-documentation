@@ -12,9 +12,9 @@
 <body>
   <div id="app-shell"></div>
   <script type="module">
-    import { requireAuth, attachLogout } from "./js/auth.js";
-    import { renderShell } from "./js/shell.js";
-    import { subscribeToTeam } from "./js/team.js";
+    import { requireAuth, attachLogout } from "./js/auth.js?v=20260918-02";
+    import { renderShell } from "./js/shell.js?v=20260918-02";
+    import { subscribeToTeam } from "./js/team.js?v=20260918-02";
 
     requireAuth(async function(user) {
       renderShell({ active: "team", title: "Team", user: user });
