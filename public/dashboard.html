@@ -12,9 +12,9 @@
 <body>
   <div id="app-shell"></div>
   <script type="module">
-    import { requireAuth, attachLogout } from "./js/auth.js";
-    import { renderShell } from "./js/shell.js";
-    import { initializeDashboard } from "./js/dashboard.js";
+    import { requireAuth, attachLogout } from "./js/auth.js?v=20260918-02";
+    import { renderShell } from "./js/shell.js?v=20260918-02";
+    import { initializeDashboard } from "./js/dashboard.js?v=20260918-02";
 
     requireAuth(async function(user) {
       renderShell({ active: "dashboard", title: "Dashboard", user: user });
@@ -29,7 +29,7 @@
               '<p class="page-subtitle">A live view of practices, team documentation, and anything you still need to log.</p>' +
             '</div>' +
             '<div class="page-actions">' +
-              '<button id="create-today" class="btn btn-primary" type="button">Create Today&apos;s Practice</button>' +
+              '<button id="create-today" class="btn btn-primary" type="button">Add Practice</button>' +
             '</div>' +
           '</div>' +
         '</section>' +
