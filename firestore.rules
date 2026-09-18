@@ -3,28 +3,33 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // All authenticated team members can read the shared documentation.
+    // Writes remain scoped below to prevent members from editing another
+    // person's profile or log.
+    match /{document=**} {
+      allow read: if signedIn();
+    }
+
     match /users/{uid} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && request.auth.uid == uid;
-      allow update: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if isOwner(uid);
       allow delete: if false;
     }
 
     match /practices/{practiceId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
+      allow create, update: if signedIn();
       allow delete: if false;
 
       match /logs/{uid} {
-        allow read: if request.auth != null;
-        allow create, update: if request.auth != null && request.auth.uid == uid;
-        allow delete: if request.auth != null && request.auth.uid == uid;
+        allow create, update, delete: if isOwner(uid);
       }
-    }
-
-    match /{document=**} {
-      allow read, write: if false;
     }
   }
 }
