@@ -13,9 +13,9 @@
   <div id="app-shell"></div>
 
   <script type="module">
-    import { requireAuth, attachLogout } from "./js/auth.js";
-    import { renderShell } from "./js/shell.js";
-    import { initializePracticeLog } from "./js/my-log.js";
+    import { requireAuth, attachLogout } from "./js/auth.js?v=20260918-02";
+    import { renderShell } from "./js/shell.js?v=20260918-02";
+    import { initializePracticeLog } from "./js/my-log.js?v=20260918-02";
 
     requireAuth(async function(user) {
       renderShell({ active: "my-log", title: "My Log", user: user });
