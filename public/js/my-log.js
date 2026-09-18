@@ -1,6 +1,6 @@
-import { db } from "./firebase.js?v=20260918-02";
+import { db } from "./firebase.js?v=20260918-03";
 import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=20260918-02";
+import { showToast } from "./ui.js?v=20260918-03";
 
 let currentUser = null;
 let practice = null;
@@ -265,9 +265,4 @@ export async function initializePracticeLog(user){
   document.getElementById("cancel-log").addEventListener("click",function(){
     window.location.href="./practice.html?id="+encodeURIComponent(practice.id);
   });
-}
-
-function formatDateKey(key){
-  const parts=key.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-US",{month:"long",day:"numeric",year:"numeric"}).format(new Date(parts[0],parts[1]-1,parts[2]));
 }
