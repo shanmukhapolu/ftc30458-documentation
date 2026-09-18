@@ -8,7 +8,7 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/12.19.0/firebas
 import { getStorage } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
 
 const fallbackConfig = {
-  apiKey: "AIzaSyA-yYsv1j0tJ0c0YpH54",
+  apiKey: "AIzaSyA-yYvSV8mIUj0TAgQr31DXtuT0c0YpH54",
   authDomain: "ftcdocumentation-53b62.firebaseapp.com",
   projectId: "ftcdocumentation-53b62",
   storageBucket: "ftcdocumentation-53b62.firebasestorage.app",
