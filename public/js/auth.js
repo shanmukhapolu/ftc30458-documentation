@@ -1,170 +1,102 @@
-// public/js/auth.js
+import { auth, db } from "./firebase.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { auth } from "./firebase.js";
-
-import {
-  onAuthStateChanged,
-  signOut
-} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-
-/**
- * Require an authenticated user.
- *
- * If a user is already signed in, the callback receives
- * the Firebase User object.
- *
- * If no user is signed in, redirect to the login page.
- *
- * @param {(user: import("firebase/auth").User) => void} onAuthenticated
- * @returns {() => void} unsubscribe function
- */
 export function requireAuth(onAuthenticated) {
-  return onAuthStateChanged(auth, (user) => {
+  return onAuthStateChanged(auth, async function(user) {
     if (!user) {
-      const currentPath =
-        window.location.pathname +
-        window.location.search +
-        window.location.hash;
-
-      const redirect =
-        currentPath &&
-        currentPath !== "/" &&
-        currentPath !== "/index.html"
-          ? `?redirect=${encodeURIComponent(currentPath)}`
-          : "";
-
-      window.location.replace(`./index.html${redirect}`);
+      window.location.replace("./index.html");
       return;
     }
-
+    await ensureUserProfile(user);
     if (typeof onAuthenticated === "function") {
-      onAuthenticated(user);
+      await onAuthenticated(user);
     }
   });
 }
 
-/**
- * Redirect an authenticated user away from the login page.
- *
- * Useful on index.html.
- *
- * @param {string} destination
- * @returns {() => void} unsubscribe function
- */
-export function redirectIfAuthenticated(
-  destination = "./dashboard.html"
-) {
-  return onAuthStateChanged(auth, (user) => {
+export function redirectIfAuthenticated(destination) {
+  return onAuthStateChanged(auth, function(user) {
     if (user) {
-      window.location.replace(destination);
+      window.location.replace(destination || "./dashboard.html");
     }
   });
 }
 
-/**
- * Sign out the current user.
- *
- * @returns {Promise<void>}
- */
+export async function ensureUserProfile(user) {
+  if (!user || !user.uid) return null;
+
+  const ref = doc(db, "users", user.uid);
+  const snapshot = await getDoc(ref);
+  const existing = snapshot.exists() ? snapshot.data() : {};
+
+  const profile = {
+    displayName:
+      user.displayName ||
+      existing.displayName ||
+      (user.email ? user.email.split("@")[0] : "Team Member"),
+    email: user.email || existing.email || "",
+    role: existing.role || "Team Member",
+    department: existing.department || "Not assigned",
+    photoURL: user.photoURL || existing.photoURL || "",
+    active: existing.active !== false,
+    updatedAt: serverTimestamp()
+  };
+
+  if (!snapshot.exists()) {
+    profile.createdAt = serverTimestamp();
+  }
+
+  await setDoc(ref, profile, { merge: true });
+  return profile;
+}
+
+export async function getUserProfile(uid) {
+  const snapshot = await getDoc(doc(db, "users", uid));
+  return snapshot.exists() ? snapshot.data() : null;
+}
+
 export async function logout() {
   await signOut(auth);
 }
 
-/**
- * Get a useful display name for a Firebase user.
- *
- * @param {import("firebase/auth").User} user
- * @returns {string}
- */
 export function getDisplayName(user) {
-  if (!user) {
-    return "Team Member";
-  }
-
-  if (user.displayName?.trim()) {
+  if (!user) return "Team Member";
+  if (user.displayName && user.displayName.trim()) {
     return user.displayName.trim();
   }
-
-  if (user.email) {
-    return user.email.split("@")[0];
-  }
-
+  if (user.email) return user.email.split("@")[0];
   return "Team Member";
 }
 
-/**
- * Get initials for avatars.
- *
- * @param {import("firebase/auth").User} user
- * @returns {string}
- */
 export function getInitials(user) {
-  const displayName = getDisplayName(user);
-
-  const parts = displayName
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
+  const name = getDisplayName(user);
+  const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length >= 2) {
-    return (
-      parts[0][0] +
-      parts[parts.length - 1][0]
-    ).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
-
-  return displayName
-    .slice(0, 2)
-    .toUpperCase();
+  return name.slice(0, 2).toUpperCase();
 }
 
-/**
- * Get the user's email safely.
- *
- * @param {import("firebase/auth").User} user
- * @returns {string}
- */
-export function getUserEmail(user) {
-  return user?.email || "";
-}
-
-/**
- * Attach a standard logout handler to a button.
- *
- * @param {string|HTMLElement} buttonOrSelector
- * @param {Object} options
- * @param {string} options.redirect
- */
-export function attachLogout(
-  buttonOrSelector,
-  {
-    redirect = "./index.html"
-  } = {}
-) {
+export function attachLogout(buttonOrSelector, options) {
+  const opts = options || {};
   const button =
     typeof buttonOrSelector === "string"
       ? document.querySelector(buttonOrSelector)
       : buttonOrSelector;
 
-  if (!button) {
-    return;
-  }
+  if (!button) return;
 
-  button.addEventListener("click", async () => {
+  button.addEventListener("click", async function() {
     button.disabled = true;
-
     try {
       await logout();
-      window.location.replace(redirect);
+      window.location.replace(opts.redirect || "./index.html");
     } catch (error) {
       console.error("Sign out failed:", error);
-
       button.disabled = false;
-
       if (typeof window.showToast === "function") {
-        window.showToast(
-          "Unable to sign out. Please try again."
-        );
+        window.showToast("Unable to sign out. Please try again.", "error");
       }
     }
   });
