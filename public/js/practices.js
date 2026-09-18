@@ -1,102 +1,102 @@
 import { db } from "./firebase.js";
-import { doc, collection, onSnapshot, orderBy, query, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { collection, collectionGroup, onSnapshot, query, where, setDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { showToast } from "./ui.js";
 
-let currentUser = null;
-let practices = [];
-let logCounts = new Map();
-let logUnsubs = new Map();
+let currentUser=null;
+let practices=[];
+let allLogs=[];
 
-function todayKey() {
-  const d = new Date();
-  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+function todayKey(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 }
-
-function formatDateKey(key) {
-  const parts = key.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-US", {month:"long",day:"numeric",year:"numeric"}).format(new Date(parts[0], parts[1]-1, parts[2]));
+function formatDateKey(key){
+  const p=key.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US",{month:"long",day:"numeric",year:"numeric"}).format(new Date(p[0],p[1]-1,p[2]));
 }
-
-function esc(value) {
-  return String(value || "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+function esc(value){
+  return String(value||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 }
-
-function createToday() {
-  const key = todayKey();
-  return setDoc(doc(db, "practices", key), {
-    title: formatDateKey(key),
-    dateKey: key,
-    createdBy: currentUser.uid,
-    createdByEmail: currentUser.email || "",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  }, { merge: true }).then(function() {
-    window.location.href = "./practice.html?id=" + encodeURIComponent(key);
+function createToday(){
+  const key=todayKey();
+  setDoc(doc(db,"practices",key),{
+    title:formatDateKey(key),dateKey:key,createdBy:currentUser.uid,createdByEmail:currentUser.email||"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()
+  },{merge:true}).then(()=>{
+    location.href="./practice.html?id="+encodeURIComponent(key);
+  }).catch(error=>{
+    console.error("Failed to create practice:",error);
+    showToast("Could not create the practice: "+error.message,"error",7000);
   });
 }
+function render(){
+  const list=document.getElementById("practice-list");
+  const search=document.getElementById("practice-search").value.trim().toLowerCase();
 
-function subscribeLogs(practice) {
-  if (logUnsubs.has(practice.id)) return;
-  const unsubscribe = onSnapshot(collection(db, "practices", practice.id, "logs"), function(snapshot) {
-    logCounts.set(practice.id, snapshot.size);
-    render();
-  });
-  logUnsubs.set(practice.id, unsubscribe);
-}
-
-function render() {
-  const list = document.getElementById("practice-list");
-  const queryText = document.getElementById("practice-search").value.trim().toLowerCase();
-
-  const filtered = practices.filter(function(practice) {
-    const date = formatDateKey(practice.dateKey || practice.id);
-    return !queryText || date.toLowerCase().includes(queryText) || String(practice.notes || "").toLowerCase().includes(queryText);
+  const filtered=practices.filter(p=>{
+    const date=formatDateKey(p.dateKey||p.id);
+    return !search||date.toLowerCase().includes(search);
   });
 
-  if (!filtered.length) {
-    list.innerHTML =
-      '<div class="card-shell"><div class="empty-state"><div class="empty-icon">▣</div><h3>No practices found</h3><p>Create today\\'s practice or change your search.</p></div></div>';
+  if(!filtered.length){
+    list.innerHTML='<div class="card-shell"><div class="empty-state"><div class="empty-icon">▣</div><h3>No practices found</h3><p>Create today\\'s practice or change your search.</p></div></div>';
     return;
   }
 
-  list.innerHTML = filtered.map(function(practice) {
-    const key = practice.dateKey || practice.id;
-    const count = logCounts.get(practice.id) || 0;
-    return '<article class="practice-row" tabindex="0" data-id="' + esc(practice.id) + '">' +
-      '<div class="practice-number">LOG<div class="practice-date">Practice</div></div>' +
-      '<div class="practice-main"><h3 class="practice-title">' + esc(formatDateKey(key)) + '</h3>' +
-      '<p class="practice-description">' + count + ' member ' + (count === 1 ? "log" : "logs") + ' documented. Open to see the shared record.</p>' +
-      '<div class="practice-meta"><span>One log per member</span><span>•</span><span>Editable anytime</span><span>•</span><span>Live synced</span></div></div>' +
-      '<div class="practice-side"><span class="chip ' + (key === todayKey() ? "chip-teal" : "chip-neutral") + '">' + (key === todayKey() ? "Today" : "Practice") + '</span></div>' +
-    '</article>';
+  list.innerHTML=filtered.map(p=>{
+    const key=p.dateKey||p.id;
+    const logs=allLogs.filter(log=>log.practiceId===p.id);
+    const mine=logs.some(log=>log.id===currentUser.uid);
+
+    return '<article class="practice-row" tabindex="0" data-id="'+esc(p.id)+'"><div class="practice-number">LOG<div class="practice-date">Practice</div></div><div class="practice-main"><h3 class="practice-title">'+esc(formatDateKey(key))+'</h3><p class="practice-description">'+logs.length+' member '+(logs.length===1?"log":"logs")+' documented.</p><div class="practice-meta"><span>One log per member</span><span>•</span><span>Editable anytime</span><span>•</span><span>Live synced</span></div></div><div class="practice-side"><span class="chip '+(mine?"chip-success":"chip-warning")+'">'+(mine?"Your log saved":"Your log missing")+'</span></div></article>';
   }).join("");
 
-  list.querySelectorAll("[data-id]").forEach(function(row) {
-    row.addEventListener("click", function() {
-      window.location.href = "./practice.html?id=" + encodeURIComponent(row.dataset.id);
-    });
-    row.addEventListener("keydown", function(event) {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        window.location.href = "./practice.html?id=" + encodeURIComponent(row.dataset.id);
-      }
+  list.querySelectorAll("[data-id]").forEach(row=>{
+    row.addEventListener("click",()=>location.href="./practice.html?id="+encodeURIComponent(row.dataset.id));
+    row.addEventListener("keydown",e=>{
+      if(e.key==="Enter"||e.key===" "){e.preventDefault();location.href="./practice.html?id="+encodeURIComponent(row.dataset.id);}
     });
   });
 }
+export function initializePractices(user){
+  currentUser=user;
+  document.getElementById("create-practice").addEventListener("click",createToday);
+  document.getElementById("practice-search").addEventListener("input",render);
 
-export function initializePractices(user) {
-  currentUser = user;
+  onSnapshot(
+    collection(db,"practices"),
+    snapshot=>{
+      practices=snapshot.docs.map(item=>({id:item.id,...item.data()})).sort((a,b)=>String(b.dateKey||b.id).localeCompare(String(a.dateKey||a.id)));
+      render();
+    },
+    error=>{
+      console.error("Practices failed:",error);
+      document.getElementById("practice-list").innerHTML='<div class="notice notice-danger">Practices could not be loaded: '+esc(error.message)+'</div>';
+      showToast("Firestore could not read practices: "+error.message,"error",7000);
+    }
+  );
 
-  document.getElementById("create-practice").addEventListener("click", createToday);
-  document.getElementById("practice-search").addEventListener("input", render);
+  onSnapshot(
+    query(collectionGroup(db,"logs"),where("userId","==",user.uid)),
+    mineSnapshot=>{
+      const mine=mineSnapshot.docs.map(item=>({id:item.id,...item.data()}));
 
-  const practicesQuery = query(collection(db, "practices"), orderBy("dateKey", "desc"));
-
-  onSnapshot(practicesQuery, function(snapshot) {
-    practices = snapshot.docs.map(function(item) {
-      return { id: item.id, ...item.data() };
-    });
-
-    practices.forEach(subscribeLogs);
-    render();
-  });
+      onSnapshot(
+        collectionGroup(db,"logs"),
+        allSnapshot=>{
+          allLogs=allSnapshot.docs.map(item=>({id:item.id,...item.data()}));
+          render();
+        },
+        error=>{
+          console.error("All logs failed:",error);
+          allLogs=mine;
+          render();
+          showToast("Team logs could not be loaded: "+error.message,"error",7000);
+        }
+      );
+    },
+    error=>{
+      console.error("My logs failed:",error);
+      showToast("Your logs could not be loaded: "+error.message,"error",7000);
+    }
+  );
 }
