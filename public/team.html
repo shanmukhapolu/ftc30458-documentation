@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team | FTC 30458 Engineering Log</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <div id="app-shell"></div>
+  <script type="module">
+    import { requireAuth, attachLogout } from "./js/auth.js";
+    import { renderShell } from "./js/shell.js";
+    import { subscribeToTeam } from "./js/team.js";
+
+    requireAuth(async function(user) {
+      renderShell({ active: "team", title: "Team", user: user });
+      const page = document.getElementById("page-content");
+      page.innerHTML =
+        '<section class="page-header"><div class="page-header-row">' +
+          '<div class="page-header-copy"><div class="eyebrow">MasterMinds</div><h2 class="page-title">Team</h2>' +
+          '<p class="page-subtitle">Everyone documenting the season in one place. Profiles sync automatically as members sign in.</p></div>' +
+          '<div id="team-count" class="chip chip-teal">Loading…</div>' +
+        '</div></section>' +
+        '<div id="team-loading" class="loading">Loading team members…</div>' +
+        '<section id="team-grid" class="member-grid"></section>';
+
+      attachLogout("#logout-button");
+      subscribeToTeam();
+    });
+  </script>
+</body>
+</html>
