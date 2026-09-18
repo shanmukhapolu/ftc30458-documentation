@@ -1,5 +1,3 @@
-// public/js/firebase.js
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import {
   getAuth,
@@ -9,9 +7,8 @@ import {
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
 
-// Firebase configuration for FTC 30458 Engineering Log
-const firebaseConfig = {
-  apiKey: "AIzaSyA-yYvSV8mIUj0TAgQr31DXtuT0c0YpH54",
+const fallbackConfig = {
+  apiKey: "AIzaSyA-yYsv1j0tJ0c0YpH54",
   authDomain: "ftcdocumentation-53b62.firebaseapp.com",
   projectId: "ftcdocumentation-53b62",
   storageBucket: "ftcdocumentation-53b62.firebasestorage.app",
@@ -20,23 +17,35 @@ const firebaseConfig = {
   measurementId: "G-SJTJZF1ZJS"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+async function loadFirebaseConfig() {
+  try {
+    const response = await fetch("/__/firebase/init.json", {
+      cache: "no-store"
+    });
 
-// Firebase services
+    if (!response.ok) {
+      throw new Error("Firebase Hosting configuration request failed.");
+    }
+
+    const config = await response.json();
+
+    if (!config || !config.projectId) {
+      throw new Error("Firebase Hosting returned an invalid configuration.");
+    }
+
+    return config;
+  } catch (error) {
+    console.warn("Using fallback Firebase configuration:", error);
+    return fallbackConfig;
+  }
+}
+
+const firebaseConfig = await loadFirebaseConfig();
+const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// Keep users signed in across browser sessions.
-// Firebase restores the authenticated session automatically
-// when browser-local persistence is available.
 await setPersistence(auth, browserLocalPersistence);
 
-// Export everything other files will need.
-export {
-  app,
-  auth,
-  db,
-  storage
-};
+export { app, auth, db, storage, firebaseConfig };
