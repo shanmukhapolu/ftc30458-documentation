@@ -18,67 +18,135 @@
     import { renderShell } from "./js/shell.js?v=20260918-03";
     import { showToast } from "./js/ui.js?v=20260918-03";
 
+    const roles = [
+      "Team Lead",
+      "Mechanical",
+      "CAD",
+      "Programming",
+      "Electrical",
+      "Autonomous",
+      "Vision",
+      "Testing",
+      "Strategy",
+      "Outreach / Sponsorship",
+      "Media / PR",
+      "Multi-disciplinary",
+      "Other"
+    ];
+
     requireAuth(async function(user) {
       renderShell({ active:"settings", title:"Settings", user:user });
-      document.getElementById("page-content").innerHTML =
-        '<section class="page-header"><div class="page-header-copy">' +
-          '<div class="eyebrow">Account</div><h2 class="page-title">Settings</h2>' +
-          '<p class="page-subtitle">Update your team profile or send yourself a password reset email.</p>' +
-        '</div></section>' +
 
-        '<section class="card-shell" style="padding:24px;max-width:760px">' +
-          '<div class="section-head"><div><h2>Profile</h2><p>These details are visible to the team.</p></div></div>' +
-          '<form id="settings-form">' +
-            '<div class="form-group"><label class="form-label" for="settings-name">Name</label><input id="settings-name" class="form-input" required></div>' +
-            '<div class="form-group"><label class="form-label" for="settings-role">Primary role</label>' +
-              '<select id="settings-role" class="form-select" required>' +
-                '<option value="">Select a role</option>' +
-                '<option>Team Lead</option><option>Mechanical</option><option>CAD</option><option>Programming</option><option>Electrical</option><option>Autonomous</option><option>Vision</option><option>Testing</option><option>Strategy</option><option>Outreach / Sponsorship</option><option>Media / PR</option><option>Multi-disciplinary</option><option>Other</option>' +
-              '</select>' +
+      const page = document.getElementById("page-content");
+      page.innerHTML =
+        '<section class="page-header">' +
+          '<div class="page-header-row">' +
+            '<div class="page-header-copy">' +
+              '<div class="eyebrow">Account</div>' +
+              '<h2 class="page-title">Settings</h2>' +
+              '<p class="page-subtitle">Manage the team profile attached to your account. Changes appear across the documentation workspace automatically.</p>' +
             '</div>' +
-            '<div class="form-group"><label class="form-label" for="settings-email">Account email</label><input id="settings-email" class="form-input" type="email" readonly></div>' +
-            '<button class="btn btn-primary" type="submit">Save Changes</button>' +
-          '</form>' +
+          '</div>' +
         '</section>' +
 
-        '<section class="card-shell" style="padding:24px;max-width:760px;margin-top:18px">' +
-          '<div class="section-head"><div><h2>Password</h2><p>Send a secure Firebase password reset link to your account email.</p></div></div>' +
-          '<button id="reset-password" class="btn btn-outline" type="button">Send Password Reset Email</button>' +
-        '</section>';
+        '<div class="log-layout">' +
+          '<div>' +
+            '<section class="card-shell" style="padding:24px;margin-bottom:18px">' +
+              '<div class="section-head"><div><h2>Profile</h2><p>Your name and primary role are visible to other team members.</p></div><span id="profile-status" class="chip chip-neutral">Loading</span></div>' +
+              '<form id="settings-form">' +
+                '<div class="form-row">' +
+                  '<div class="form-group"><label class="form-label" for="settings-name">Name</label><input id="settings-name" class="form-input" autocomplete="name" required></div>' +
+                  '<div class="form-group"><label class="form-label" for="settings-role">Primary role</label><select id="settings-role" class="form-select" required><option value="">Select a role</option>' +
+                    roles.map(role => '<option value="'+role.replaceAll('"','&quot;')+'">'+role.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")+'</option>').join("") +
+                  '</select></div>' +
+                '</div>' +
+                '<div class="form-group"><label class="form-label" for="settings-email">Account email</label><input id="settings-email" class="form-input" type="email" readonly></div>' +
+                '<div style="display:flex;justify-content:flex-end;gap:10px"><button id="save-profile" class="btn btn-primary" type="submit">Save Changes</button></div>' +
+              '</form>' +
+            '</section>' +
 
-      attachLogout("#logout-button");
+            '<section class="card-shell" style="padding:24px;margin-bottom:18px">' +
+              '<div class="section-head"><div><h2>Password</h2><p>Send a secure password reset link to your account email.</p></div></div>' +
+              '<div class="notice notice-warning" style="margin-bottom:14px">A reset link will be sent to <strong id="password-email"></strong>. This does not sign you out.</div>' +
+              '<button id="reset-password" class="btn btn-outline" type="button">Send Password Reset Email</button>' +
+            '</section>' +
 
-      let profile = null;
-      try {
-        profile = await getUserProfile(user.uid);
-      } catch (error) {
-        console.error("Unable to load settings profile:", error);
-        showToast("Your profile could not be read. Refresh and try again.", "error", 7000);
+            '<section class="card-shell" style="padding:24px">' +
+              '<div class="section-head"><div><h2>Session</h2><p>Sign out of this browser when you are finished.</p></div></div>' +
+              '<button id="settings-signout" class="btn btn-outline" type="button">Sign Out</button>' +
+            '</section>' +
+          '</div>' +
+
+          '<aside class="side-panel">' +
+            '<div class="summary-card">' +
+              '<div class="eyebrow">Account</div>' +
+              '<h3 style="font-size:1rem;margin-bottom:13px">Current profile</h3>' +
+              '<div class="summary-stat"><span>Name</span><strong id="summary-name">—</strong></div>' +
+              '<div class="summary-stat"><span>Role</span><strong id="summary-role">—</strong></div>' +
+              '<div class="summary-stat"><span>Email</span><strong id="summary-email">—</strong></div>' +
+              '<div class="form-hint" style="margin-top:15px">Your profile is shared with the team so practice pages can identify who documented each entry.</div>' +
+            '</div>' +
+          '</aside>' +
+        '</div>';
+
+      attachLogout("#settings-signout");
+
+      const nameField = document.getElementById("settings-name");
+      const roleField = document.getElementById("settings-role");
+      const emailField = document.getElementById("settings-email");
+      const passwordEmail = document.getElementById("password-email");
+      const profileStatus = document.getElementById("profile-status");
+      const saveButton = document.getElementById("save-profile");
+      const summaryName = document.getElementById("summary-name");
+      const summaryRole = document.getElementById("summary-role");
+      const summaryEmail = document.getElementById("summary-email");
+
+      emailField.value = user.email || "";
+      passwordEmail.textContent = user.email || "your account email";
+      summaryEmail.textContent = user.email || "—";
+
+      function syncSummary(){
+        summaryName.textContent = nameField.value.trim() || "—";
+        summaryRole.textContent = roleField.value || "—";
       }
 
-      document.getElementById("settings-name").value = profile?.displayName || user.displayName || "";
-      document.getElementById("settings-role").value = profile?.role || "";
-      document.getElementById("settings-email").value = user.email || "";
+      nameField.addEventListener("input", syncSummary);
+      roleField.addEventListener("change", syncSummary);
+
+      try {
+        const profile = await getUserProfile(user.uid);
+        nameField.value = profile?.displayName || user.displayName || "";
+        roleField.value = profile?.role || "";
+        profileStatus.textContent = profile?.profileComplete ? "Complete" : "Needs setup";
+        profileStatus.className = "chip " + (profile?.profileComplete ? "chip-success" : "chip-warning");
+        syncSummary();
+      } catch (error) {
+        console.error("Unable to load settings profile:", error);
+        profileStatus.textContent = "Read failed";
+        profileStatus.className = "chip chip-danger";
+        showToast("Your profile could not be loaded. You can still retry saving.", "error", 7000);
+      }
 
       document.getElementById("settings-form").addEventListener("submit", async function(event) {
         event.preventDefault();
-
-        const button = event.currentTarget.querySelector("button[type=submit]");
-        button.disabled = true;
-        button.textContent = "Saving…";
+        saveButton.disabled = true;
+        saveButton.textContent = "Saving…";
 
         try {
           await saveUserProfile(user, {
-            displayName: document.getElementById("settings-name").value,
-            role: document.getElementById("settings-role").value
+            displayName: nameField.value,
+            role: roleField.value
           });
+          profileStatus.textContent = "Saved";
+          profileStatus.className = "chip chip-success";
+          syncSummary();
           showToast("Profile updated.", "success");
         } catch (error) {
-          console.error(error);
-          showToast(error.message || "Unable to update profile.", "error");
+          console.error("Unable to save profile:", error);
+          showToast(error.message || "Unable to update your profile.", "error", 7000);
         } finally {
-          button.disabled = false;
-          button.textContent = "Save Changes";
+          saveButton.disabled = false;
+          saveButton.textContent = "Save Changes";
         }
       });
 
@@ -89,10 +157,10 @@
 
         try {
           await sendResetPasswordEmail(user);
-          showToast("Password reset email sent to " + user.email + ".", "success", 5000);
+          showToast("Password reset email sent.", "success", 5000);
         } catch (error) {
-          console.error(error);
-          showToast(error.message || "Unable to send the reset email.", "error", 6000);
+          console.error("Unable to send password reset email:", error);
+          showToast(error.message || "Unable to send the reset email.", "error", 7000);
         } finally {
           button.disabled = false;
           button.textContent = "Send Password Reset Email";
