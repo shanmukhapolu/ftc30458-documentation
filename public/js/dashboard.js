@@ -1,27 +1,59 @@
 import { db } from "./firebase.js";
-import { collection, collectionGroup, doc, onSnapshot, query, setDoc, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { collection, doc, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { showToast } from "./ui.js";
 
 let currentUser = null;
 let practices = [];
-let myLogs = [];
+let myLogsByPractice = new Map();
 let latestPracticeLogs = [];
 let latestPracticeId = null;
+let practiceLogUnsubscribers = new Map();
+let latestPracticeUnsubscribe = null;
 
 function dateKey() {
   const d=new Date();
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 }
+
 function formatDateKey(key) {
-  const p=key.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-US",{month:"long",day:"numeric",year:"numeric"}).format(new Date(p[0],p[1]-1,p[2]));
+  const p=String(key).split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US",{month:"long",day:"numeric",year:"numeric"})
+    .format(new Date(p[0],p[1]-1,p[2]));
 }
+
 function esc(value) {
-  return String(value||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  return String(value||"")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
-function myLogFor(id){ return myLogs.find(log=>log.practiceId===id); }
+
+function myLogFor(id){
+  return myLogsByPractice.get(id)||null;
+}
 
 function render() {
+  const statPractices=document.getElementById("stat-practices");
+  const statMyLogs=document.getElementById("stat-my-logs");
+  const statToday=document.getElementById("stat-today");
+  const statOverdue=document.getElementById("stat-overdue");
+  const create=document.getElementById("create-today");
+  const todayStatus=document.getElementById("today-status");
+  const todayNote=document.getElementById("today-status-note");
+  const recent=document.getElementById("recent-practices");
+  const overdueList=document.getElementById("overdue-list");
+  const latestPractice=document.getElementById("latest-practice");
+  const latestPracticeNote=document.getElementById("latest-practice-note");
+  const teamCompletion=document.getElementById("team-completion");
+  const recentActivity=document.getElementById("recent-activity");
+
+  if(!statPractices||!statMyLogs||!statToday||!statOverdue||!create||!todayStatus||!todayNote||!recent||!overdueList||!latestPractice||!latestPracticeNote||!teamCompletion||!recentActivity){
+    console.error("Dashboard could not render: required DOM elements are missing.");
+    return;
+  }
+
   const today=dateKey();
   const todayPractice=practices.find(p=>(p.dateKey||p.id)===today)||null;
   const overdue=practices.filter(p=>{
@@ -29,14 +61,12 @@ function render() {
     return key<today&&!myLogFor(p.id);
   });
 
-  document.getElementById("stat-practices").textContent=practices.length;
-  document.getElementById("stat-my-logs").textContent=myLogs.length;
-  document.getElementById("stat-today").textContent=todayPractice?"Yes":"—";
-  document.getElementById("stat-overdue").textContent=overdue.length;
+  const myLogCount=[...myLogsByPractice.values()].filter(Boolean).length;
 
-  const create=document.getElementById("create-today");
-  const todayStatus=document.getElementById("today-status");
-  const todayNote=document.getElementById("today-status-note");
+  statPractices.textContent=practices.length;
+  statMyLogs.textContent=myLogCount;
+  statToday.textContent=todayPractice?"Yes":"—";
+  statOverdue.textContent=overdue.length;
 
   if(!todayPractice){
     create.classList.remove("hidden");
@@ -49,11 +79,11 @@ function render() {
     todayNote.textContent=mine?"Your documentation is saved.":"Your practice log is still missing.";
   }
 
-  document.getElementById("latest-practice").textContent=practices.length?formatDateKey(practices[0].dateKey||practices[0].id):"—";
-  document.getElementById("latest-practice-note").textContent=latestPracticeLogs.length+" member "+(latestPracticeLogs.length===1?"log":"logs");
-  document.getElementById("team-completion").textContent=latestPracticeLogs.length;
+  latestPractice.textContent=practices.length?formatDateKey(practices[0].dateKey||practices[0].id):"—";
+  latestPracticeNote.textContent=latestPracticeLogs.length+" member "+(latestPracticeLogs.length===1?"log":"logs");
+  teamCompletion.textContent=latestPracticeLogs.length;
 
-  document.getElementById("overdue-list").innerHTML=overdue.length
+  overdueList.innerHTML=overdue.length
     ? overdue.slice(0,10).map(p=>{
         const key=p.dateKey||p.id;
         const days=Math.max(1,Math.round((new Date(today+"T00:00:00")-new Date(key+"T00:00:00"))/86400000));
@@ -61,7 +91,6 @@ function render() {
       }).join("")
     : '<div class="notice notice-success">You are caught up. No past practice logs are missing.</div>';
 
-  const recent=document.getElementById("recent-practices");
   recent.innerHTML=practices.length
     ? practices.slice(0,8).map(p=>{
         const mine=Boolean(myLogFor(p.id));
@@ -70,9 +99,11 @@ function render() {
       }).join("")
     : '<div class="empty-state"><div class="empty-icon">▣</div><h3>No practices yet</h3><p>Create the first shared practice to begin the documentation record.</p></div>';
 
-  recent.querySelectorAll("[data-id]").forEach(row=>row.addEventListener("click",()=>location.href="./practice.html?id="+encodeURIComponent(row.dataset.id)));
+  recent.querySelectorAll("[data-id]").forEach(row=>{
+    row.addEventListener("click",()=>location.href="./practice.html?id="+encodeURIComponent(row.dataset.id));
+  });
 
-  document.getElementById("recent-activity").innerHTML=latestPracticeLogs.length
+  recentActivity.innerHTML=latestPracticeLogs.length
     ? latestPracticeLogs.slice().sort((a,b)=>{
         const av=a.updatedAt?.toMillis?a.updatedAt.toMillis():0;
         const bv=b.updatedAt?.toMillis?b.updatedAt.toMillis():0;
@@ -99,12 +130,58 @@ async function createPractice() {
   }
 }
 
+function syncPracticeLogListeners(){
+  const activeIds=new Set(practices.map(p=>p.id));
+
+  for(const [practiceId,unsubscribe] of practiceLogUnsubscribers){
+    if(!activeIds.has(practiceId)){
+      unsubscribe();
+      practiceLogUnsubscribers.delete(practiceId);
+      myLogsByPractice.delete(practiceId);
+    }
+  }
+
+  practices.forEach(practice=>{
+    if(practiceLogUnsubscribers.has(practice.id))return;
+
+    const unsubscribe=onSnapshot(
+      doc(db,"practices",practice.id,"logs",currentUser.uid),
+      snapshot=>{
+        if(snapshot.exists()){
+          myLogsByPractice.set(practice.id,{id:snapshot.id,...snapshot.data()});
+        }else{
+          myLogsByPractice.delete(practice.id);
+        }
+        render();
+      },
+      error=>{
+        console.error("My log failed for "+practice.id+":",error);
+        myLogsByPractice.delete(practice.id);
+        render();
+      }
+    );
+
+    practiceLogUnsubscribers.set(practice.id,unsubscribe);
+  });
+}
+
 function startLatestLogListener(id){
   if(id===latestPracticeId)return;
-  latestPracticeId=id;
-  if(!id){latestPracticeLogs=[];render();return;}
 
-  onSnapshot(
+  latestPracticeId=id;
+
+  if(latestPracticeUnsubscribe){
+    latestPracticeUnsubscribe();
+    latestPracticeUnsubscribe=null;
+  }
+
+  if(!id){
+    latestPracticeLogs=[];
+    render();
+    return;
+  }
+
+  latestPracticeUnsubscribe=onSnapshot(
     collection(db,"practices",id,"logs"),
     snapshot=>{
       latestPracticeLogs=snapshot.docs.map(item=>({id:item.id,...item.data()}));
@@ -121,32 +198,34 @@ function startLatestLogListener(id){
 
 export function initializeDashboard(user) {
   currentUser=user;
-  document.getElementById("welcome").textContent="Welcome back, "+((user.displayName||user.email||"team member").split(" ")[0])+".";
-  document.getElementById("create-today").addEventListener("click",createPractice);
+
+  const welcome=document.getElementById("welcome");
+  const createButton=document.getElementById("create-today");
+  const recent=document.getElementById("recent-practices");
+
+  if(!welcome||!createButton||!recent){
+    console.error("Dashboard could not initialize: required DOM elements are missing.");
+    return;
+  }
+
+  welcome.textContent="Welcome back, "+((user.displayName||user.email||"team member").split(" ")[0])+".";
+  createButton.addEventListener("click",createPractice);
 
   onSnapshot(
     collection(db,"practices"),
     snapshot=>{
-      practices=snapshot.docs.map(item=>({id:item.id,...item.data()})).sort((a,b)=>String(b.dateKey||b.id).localeCompare(String(a.dateKey||a.id)));
+      practices=snapshot.docs
+        .map(item=>({id:item.id,...item.data()}))
+        .sort((a,b)=>String(b.dateKey||b.id).localeCompare(String(a.dateKey||a.id)));
+
+      syncPracticeLogListeners();
       startLatestLogListener(practices[0]?.id||null);
       render();
     },
     error=>{
       console.error("Practices listener failed:",error);
-      document.getElementById("recent-practices").innerHTML='<div class="notice notice-danger">Practices could not be loaded: '+esc(error.message)+'</div>';
+      recent.innerHTML='<div class="notice notice-danger">Practices could not be loaded: '+esc(error.message)+'</div>';
       showToast("Firestore could not read practices: "+error.message,"error",7000);
-    }
-  );
-
-  onSnapshot(
-    query(collectionGroup(db,"logs"),where("userId","==",user.uid)),
-    snapshot=>{
-      myLogs=snapshot.docs.map(item=>({id:item.id,...item.data()}));
-      render();
-    },
-    error=>{
-      console.error("My logs listener failed:",error);
-      showToast("Firestore could not read your logs: "+error.message,"error",7000);
     }
   );
 }
