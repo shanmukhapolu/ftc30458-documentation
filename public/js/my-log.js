@@ -1,6 +1,6 @@
-import { db } from "./firebase.js";
+import { db } from "./firebase.js?v=20260918-02";
 import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { showToast } from "./ui.js";
+import { showToast } from "./ui.js?v=20260918-02";
 
 let currentUser = null;
 let practice = null;
