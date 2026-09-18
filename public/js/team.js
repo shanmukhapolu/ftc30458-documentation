@@ -1,14 +1,32 @@
 import { db } from "./firebase.js";
 import { collection, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-const list=document.getElementById("team-grid");
-const count=document.getElementById("team-count");
-const loading=document.getElementById("team-loading");
+function esc(value){
+  return String(value||"")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
 
-function esc(value){return String(value||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");}
-function initials(name){const p=String(name||"Team Member").trim().split(/\s+/).filter(Boolean);return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():String(name||"MM").slice(0,2).toUpperCase();}
+function initials(name){
+  const p=String(name||"Team Member").trim().split(/\s+/).filter(Boolean);
+  return p.length>=2
+    ? (p[0][0]+p[p.length-1][0]).toUpperCase()
+    : String(name||"MM").slice(0,2).toUpperCase();
+}
 
 export function subscribeToTeam(){
+  const list=document.getElementById("team-grid");
+  const count=document.getElementById("team-count");
+  const loading=document.getElementById("team-loading");
+
+  if(!list || !count || !loading){
+    console.error("Team page could not initialize: required DOM elements are missing.");
+    return ()=>{};
+  }
+
   return onSnapshot(
     collection(db,"users"),
     snapshot=>{
@@ -29,6 +47,8 @@ export function subscribeToTeam(){
       console.error("Team listener failed:",error);
       loading.classList.remove("hidden");
       loading.textContent="Team members could not be loaded: "+error.message;
+      count.textContent="Unable to load";
+      list.innerHTML='<div class="notice notice-danger">Team members could not be loaded: '+esc(error.message)+'</div>';
     }
   );
 }
