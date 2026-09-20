@@ -1,211 +1,368 @@
-import { db } from "./firebase.js?v=20260918-03";
-import { doc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { db } from "./firebase.js?v=20260920-01";
+import {
+  collection,
+  doc,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-let currentUser=null;
-let practice=null;
-let logs=[];
-let users=[];
+let currentUser = null;
+let practice = null;
+let logs = [];
+let users = [];
 
-function esc(value){
-  return String(value||"")
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+const LEGACY_CATEGORY = "General";
+
+function esc(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-function initials(name){
-  const p=String(name||"Team Member").trim().split(/\s+/).filter(Boolean);
-  return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():String(name||"MM").slice(0,2).toUpperCase();
+function initials(name) {
+  const parts = String(name || "Team Member").trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return String(name || "MM").slice(0, 2).toUpperCase();
 }
 
-function formatDateKey(key){
-  const p=String(key).split("-").map(Number);
-  return new Intl.DateTimeFormat("en-US",{month:"long",day:"numeric",year:"numeric"})
-    .format(new Date(p[0],p[1]-1,p[2]));
+function formatDateKey(key) {
+  const parts = String(key || "").split("-").map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return "Practice";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  }).format(new Date(parts[0], parts[1] - 1, parts[2]));
 }
 
-function pretty(field){
-  return field.replace(/([A-Z])/g," $1").replace(/^./,c=>c.toUpperCase());
-}
-
-function closeModal(){
-  const modal=document.getElementById("log-modal");
-  if(!modal)return;
-  modal.classList.remove("open");
-  document.body.style.overflow="";
-}
-
-function openModal(log){
-  const modal=document.getElementById("log-modal");
-  const modalBody=document.getElementById("modal-body");
-  const modalTitle=document.getElementById("modal-title");
-  const modalFooter=document.getElementById("modal-footer");
-
-  if(!modal || !modalBody || !modalTitle || !modalFooter){
-    console.error("Practice modal could not open: required DOM elements are missing.");
-    return;
+function getTasks(log) {
+  if (Array.isArray(log.tasks)) {
+    return log.tasks.map(function(task) {
+      return {
+        text: String(task?.text || "").trim(),
+        category: String(task?.category || LEGACY_CATEGORY).trim() || LEGACY_CATEGORY
+      };
+    }).filter(function(task) { return task.text; });
   }
 
-  modalTitle.textContent=log.memberName||"Team member";
-  modal.classList.add("open");
-  document.body.style.overflow="hidden";
+  if (Array.isArray(log.selectedPresets) && log.selectedPresets.length) {
+    const areas = Array.isArray(log.workAreas) ? log.workAreas : [];
+    return log.selectedPresets.map(function(text, index) {
+      return {
+        text: String(text || "").trim(),
+        category: areas[index] || areas[0] || LEGACY_CATEGORY
+      };
+    }).filter(function(task) { return task.text; });
+  }
 
-  let html="";
-  if(log.workAreas?.length)html+='<div class="log-view-block"><div class="log-view-label">Work areas</div><div class="log-view-tags">'+log.workAreas.map(x=>'<span class="chip chip-primary">'+esc(x)+'</span>').join("")+"</div></div>";
-  if(log.majorAccomplishment)html+='<div class="log-view-block"><div class="log-view-label">Major accomplishment</div><div class="log-view-text">'+esc(log.majorAccomplishment)+"</div></div>";
-  if(log.selectedPresets?.length)html+='<div class="log-view-block"><div class="log-view-label">Quick phrases</div><div class="log-view-tags">'+log.selectedPresets.map(x=>'<span class="chip chip-teal">'+esc(x)+"</span>").join("")+"</div></div>";
+  if (log.majorAccomplishment) {
+    return [{
+      text: String(log.majorAccomplishment).trim(),
+      category: Array.isArray(log.workAreas) && log.workAreas[0] ? log.workAreas[0] : LEGACY_CATEGORY
+    }];
+  }
 
-  Object.keys(log.details||{}).forEach(area=>{
-    const values=log.details[area];
-    if(!values||typeof values!=="object")return;
-    Object.keys(values).forEach(field=>{
-      if(values[field])html+='<div class="log-view-block"><div class="log-view-label">'+esc(pretty(field))+'</div><div class="log-view-text">'+esc(values[field])+"</div></div>";
-    });
+  return [];
+}
+
+function getNextSteps(log) {
+  if (Array.isArray(log.nextSteps)) {
+    return log.nextSteps.map(function(step) {
+      return {
+        text: String(step?.text || "").trim(),
+        category: String(step?.category || LEGACY_CATEGORY).trim() || LEGACY_CATEGORY
+      };
+    }).filter(function(step) { return step.text; });
+  }
+
+  if (log.nextStep) {
+    return [{
+      text: String(log.nextStep).trim(),
+      category: Array.isArray(log.workAreas) && log.workAreas[0] ? log.workAreas[0] : LEGACY_CATEGORY
+    }];
+  }
+
+  return [];
+}
+
+function getLearned(log) {
+  return String(log.learned || log.lesson || "").trim();
+}
+
+function updatedTime(log) {
+  if (log.updatedAt?.toMillis) return log.updatedAt.toMillis();
+  if (log.createdAt?.toMillis) return log.createdAt.toMillis();
+  return 0;
+}
+
+function groupByCategory(items) {
+  const grouped = new Map();
+  items.forEach(function(item) {
+    const category = item.category || LEGACY_CATEGORY;
+    if (!grouped.has(category)) grouped.set(category, []);
+    grouped.get(category).push(item);
   });
+  return grouped;
+}
 
-  if(log.lesson)html+='<div class="log-view-block"><div class="log-view-label">Lesson learned</div><div class="log-view-text">'+esc(log.lesson)+"</div></div>";
-  if(log.nextStep)html+='<div class="log-view-block"><div class="log-view-label">Next step</div><div class="log-view-text">'+esc(log.nextStep)+"</div></div>";
+function renderCategoryBoard(items, emptyMessage) {
+  if (!items.length) {
+    return '<div class="empty-state"><p>' + esc(emptyMessage) + '</p></div>';
+  }
 
-  modalBody.innerHTML=html||'<div class="empty-state"><p>No documentation has been added yet.</p></div>';
-  modalFooter.innerHTML=log.id===currentUser.uid
+  const grouped = groupByCategory(items);
+
+  return Array.from(grouped.entries()).map(function(entry) {
+    const category = entry[0];
+    const categoryItems = entry[1];
+
+    return '<section class="category-group">' +
+      '<div class="category-group-head"><h3>' + esc(category) + '</h3><span class="chip chip-primary">' + categoryItems.length + '</span></div>' +
+      '<ul class="practice-task-list">' +
+        categoryItems.map(function(item) {
+          return '<li><span class="practice-task-bullet">•</span><span class="practice-task-text">' + esc(item.text) + '</span><span class="practice-task-author">' + esc(item.memberName || "Team member") + '</span></li>';
+        }).join("") +
+      '</ul>' +
+    '</section>';
+  }).join("");
+}
+
+function renderMemberModal(log) {
+  const tasks = getTasks(log);
+  const nextSteps = getNextSteps(log);
+  const taskBoard = renderCategoryBoard(
+    tasks.map(function(task) { return { ...task, memberName: "" }; }),
+    "No completed tasks."
+  );
+  const nextBoard = renderCategoryBoard(
+    nextSteps.map(function(step) { return { ...step, memberName: "" }; }),
+    "No next steps."
+  );
+
+  let html =
+    '<div class="log-modal-member-meta">' +
+      '<span class="chip chip-primary">' + esc(log.memberName || "Team member") + '</span>' +
+      (log.memberEmail ? '<span class="chip chip-neutral">' + esc(log.memberEmail) + '</span>' : '') +
+    '</div>' +
+    '<div class="log-view-block"><div class="log-view-label">Tasks completed</div><div class="modal-category-board">' + taskBoard + '</div></div>';
+
+  if (getLearned(log)) {
+    html += '<div class="log-view-block"><div class="log-view-label">What they learned</div><div class="log-view-text">' + esc(getLearned(log)) + '</div></div>';
+  }
+
+  html += '<div class="log-view-block"><div class="log-view-label">Next steps</div><div class="modal-category-board">' + nextBoard + '</div></div>';
+
+  return html;
+}
+
+function openModal(log) {
+  const modal = document.getElementById("log-modal");
+  const body = document.getElementById("modal-body");
+  const title = document.getElementById("modal-title");
+  const footer = document.getElementById("modal-footer");
+  if (!modal || !body || !title || !footer) return;
+
+  title.textContent = log.memberName || "Team member";
+  body.innerHTML = renderMemberModal(log);
+  footer.innerHTML = log.id === currentUser.uid
     ? '<button id="modal-edit" class="btn btn-primary" type="button">Edit My Log</button>'
     : '<span class="chip chip-neutral">Read only · only the author can edit this log</span>';
 
-  document.getElementById("modal-edit")?.addEventListener("click",()=>{
-    location.href="./my-log.html?practiceId="+encodeURIComponent(practice.id);
+  document.getElementById("modal-edit")?.addEventListener("click", function() {
+    window.location.href = "./log-entry.html?practiceId=" + encodeURIComponent(practice.id);
   });
+
+  modal.classList.add("open");
+  document.body.style.overflow = "hidden";
 }
 
-function render(){
-  if(!practice)return;
+function closeModal() {
+  const modal = document.getElementById("log-modal");
+  if (!modal) return;
+  modal.classList.remove("open");
+  document.body.style.overflow = "";
+}
 
-  const title=document.getElementById("practice-title");
-  const meta=document.getElementById("practice-meta");
-  const memberProgress=document.getElementById("member-progress");
-  const workAreaCount=document.getElementById("work-area-count");
-  const accomplishmentCount=document.getElementById("accomplishment-count");
-  const lastUpdate=document.getElementById("last-update");
-  const accomplishments=document.getElementById("accomplishments");
-  const memberLogs=document.getElementById("member-logs");
+function render() {
+  if (!practice) return;
 
-  if(!title||!meta||!memberProgress||!workAreaCount||!accomplishmentCount||!lastUpdate||!accomplishments||!memberLogs){
-    console.error("Practice page could not render: required DOM elements are missing.");
-    return;
-  }
+  const key = practice.dateKey || practice.id;
+  const tasks = logs.flatMap(function(log) {
+    return getTasks(log).map(function(task) {
+      return { ...task, memberName: log.memberName || "Team member" };
+    });
+  });
+  const nextSteps = logs.flatMap(function(log) {
+    return getNextSteps(log).map(function(step) {
+      return { ...step, memberName: log.memberName || "Team member" };
+    });
+  });
+  const categories = new Set();
+  tasks.forEach(function(task) { categories.add(task.category); });
+  nextSteps.forEach(function(step) { categories.add(step.category); });
 
-  const key=practice.dateKey||practice.id;
-  title.textContent=formatDateKey(key);
-  meta.textContent="Shared practice record · "+logs.length+" of "+users.length+" members documented.";
+  document.getElementById("practice-title").textContent = formatDateKey(key);
+  document.getElementById("practice-meta").textContent =
+    "Shared practice record · " + logs.length + " of " + users.length + " members documented.";
 
-  const areas=new Set();
-  logs.forEach(log=>(log.workAreas||[]).forEach(area=>areas.add(area)));
+  document.getElementById("member-progress").textContent =
+    users.length ? logs.length + "/" + users.length : String(logs.length);
+  document.getElementById("task-count").textContent = tasks.length;
+  document.getElementById("category-count").textContent = categories.size;
+  document.getElementById("next-step-count").textContent = nextSteps.length;
 
-  memberProgress.textContent=users.length?logs.length+"/"+users.length:String(logs.length);
-  workAreaCount.textContent=areas.size;
-  accomplishmentCount.textContent=logs.filter(log=>Boolean(log.majorAccomplishment)).length;
+  document.getElementById("team-tasks").innerHTML =
+    renderCategoryBoard(tasks, "Completed tasks will appear here as team members document the practice.");
 
-  const latest=logs
-    .map(log=>log.updatedAt?.toMillis?log.updatedAt.toMillis():0)
+  document.getElementById("team-next-steps").innerHTML =
+    renderCategoryBoard(nextSteps, "Next steps will appear here as team members document what they plan to do next.");
+
+  const reflectionLogs = logs.filter(function(log) { return getLearned(log); });
+  document.getElementById("team-reflections").innerHTML = reflectionLogs.length
+    ? reflectionLogs.map(function(log) {
+        return '<article class="reflection-card">' +
+          '<div class="reflection-card-head"><strong>' + esc(log.memberName || "Team member") + '</strong><span class="chip chip-neutral">Reflection</span></div>' +
+          '<p>' + esc(getLearned(log)) + '</p>' +
+        '</article>';
+      }).join("")
+    : '<div class="card-shell"><div class="empty-state"><p>Member reflections will appear as logs are submitted.</p></div></div>';
+
+  const latest = logs
+    .map(updatedTime)
     .filter(Boolean)
-    .sort((a,b)=>b-a)[0];
-  lastUpdate.textContent=latest?new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}).format(new Date(latest)):"—";
+    .sort(function(a, b) { return b - a; })[0];
 
-  const rows=logs.filter(log=>log.majorAccomplishment);
-  accomplishments.innerHTML=rows.length
-    ? rows.map(log=>'<div class="accomplishment-row"><strong>'+esc(log.memberName||"Team member")+'</strong><span>— '+esc(log.majorAccomplishment)+'</span></div>').join("")
-    : '<div class="empty-state"><p>Member accomplishments will appear here as everyone logs their work.</p></div>';
+  const lastUpdateText = latest
+    ? new Intl.DateTimeFormat("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }).format(new Date(latest))
+    : "—";
 
-  if(!users.length){
-    memberLogs.innerHTML='<div class="card-shell"><div class="empty-state"><p>No team members are registered yet.</p></div></div>';
+  let lastUpdateMeta = document.querySelector("#next-step-count")?.parentElement;
+  void lastUpdateMeta;
+  
+  const memberLogs = document.getElementById("member-logs");
+  if (!users.length) {
+    memberLogs.innerHTML = '<div class="card-shell"><div class="empty-state"><p>No team members are registered yet.</p></div></div>';
     return;
   }
 
-  memberLogs.innerHTML=users.map(user=>{
-    const log=logs.find(item=>item.id===user.id);
-    const mine=user.id===currentUser.uid;
-    return '<article class="member-card" data-log-user="'+esc(user.id)+'" style="cursor:pointer"><div class="member-card-top"><div class="avatar">'+esc(initials(user.displayName))+'</div><div><div class="member-name">'+esc(user.displayName||"Team Member")+'</div><div class="member-role">'+esc(user.role||"Team Member")+'</div></div></div><div class="member-meta">'+(log?'<span class="chip chip-success">Documented</span>':'<span class="chip chip-warning">Not yet logged</span>')+(mine?'<span class="chip chip-primary">You</span>':"")+'</div><div class="member-email">'+(log?.majorAccomplishment?esc(log.majorAccomplishment):(mine?"Click to write your log.":"No documentation yet."))+"</div></article>";
+  memberLogs.innerHTML = users.map(function(user) {
+    const log = logs.find(function(item) { return item.id === user.id; });
+    const mine = user.id === currentUser.uid;
+    const taskList = log ? getTasks(log) : [];
+    const nextList = log ? getNextSteps(log) : [];
+
+    return '<article class="member-card" data-log-user="' + esc(user.id) + '" style="cursor:pointer">' +
+      '<div class="member-card-top">' +
+        '<div class="avatar">' + esc(initials(user.displayName)) + '</div>' +
+        '<div><div class="member-name">' + esc(user.displayName || "Team Member") + '</div><div class="member-role">' + esc(user.role || "Team Member") + '</div></div>' +
+      '</div>' +
+      '<div class="member-meta">' +
+        (log ? '<span class="chip chip-success">Documented</span>' : '<span class="chip chip-warning">Not yet logged</span>') +
+        (mine ? '<span class="chip chip-primary">You</span>' : '') +
+      '</div>' +
+      '<div class="member-email">' +
+        (log
+          ? esc(taskList.slice(0, 2).map(function(task) { return task.text; }).join(" · ") || "Log saved.")
+          : (mine ? "Click to write your practice log." : "No documentation yet.")) +
+      '</div>' +
+      '<div class="member-meta">' +
+        (log ? '<span>' + taskList.length + ' task' + (taskList.length === 1 ? '' : 's') + '</span><span>•</span><span>' + nextList.length + ' next step' + (nextList.length === 1 ? '' : 's') + '</span>' : '') +
+      '</div>' +
+    '</article>';
   }).join("");
 
-  memberLogs.querySelectorAll("[data-log-user]").forEach(card=>{
-    card.addEventListener("click",()=>{
-      const uid=card.dataset.logUser;
-      const log=logs.find(item=>item.id===uid);
-      if(uid===currentUser.uid&&!log){
-        location.href="./my-log.html?practiceId="+encodeURIComponent(practice.id);
-      }else if(log){
+  memberLogs.querySelectorAll("[data-log-user]").forEach(function(card) {
+    card.addEventListener("click", function() {
+      const uid = card.dataset.logUser;
+      const log = logs.find(function(item) { return item.id === uid; });
+      if (uid === currentUser.uid && !log) {
+        window.location.href = "./log-entry.html?practiceId=" + encodeURIComponent(practice.id);
+      } else if (log) {
         openModal(log);
       }
     });
   });
+
+  const meta = document.getElementById("practice-meta");
+  if (meta && latest) {
+    meta.textContent += " Last update " + lastUpdateText + ".";
+  }
 }
 
-export function initializePracticePage(user){
-  currentUser=user;
+export function initializePracticePage(user) {
+  currentUser = user;
 
-  const modal=document.getElementById("log-modal");
-  const closeButton=document.getElementById("close-modal");
-  const editButton=document.getElementById("edit-my-log");
-  const id=new URLSearchParams(location.search).get("id");
+  const modal = document.getElementById("log-modal");
+  const closeButton = document.getElementById("close-modal");
+  const editButton = document.getElementById("edit-my-log");
+  const id = new URLSearchParams(location.search).get("id");
 
-  if(!id){
-    document.getElementById("practice-title").textContent="Practice not found";
+  if (!id) {
+    document.getElementById("practice-title").textContent = "Practice not found";
     return;
   }
 
-  if(!modal || !closeButton || !editButton){
-    console.error("Practice page could not initialize: required DOM elements are missing.");
-    return;
-  }
-
-  editButton.addEventListener("click",()=>location.href="./my-log.html?practiceId="+encodeURIComponent(id));
-  closeButton.addEventListener("click",closeModal);
-  modal.addEventListener("click",e=>{if(e.target===modal)closeModal();});
-  document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
+  editButton.addEventListener("click", function() {
+    window.location.href = "./log-entry.html?practiceId=" + encodeURIComponent(id);
+  });
+  closeButton.addEventListener("click", closeModal);
+  modal.addEventListener("click", function(event) {
+    if (event.target === modal) closeModal();
+  });
+  document.addEventListener("keydown", function(event) {
+    if (event.key === "Escape") closeModal();
+  });
 
   onSnapshot(
-    doc(db,"practices",id),
-    snapshot=>{
-      if(!snapshot.exists()){
-        document.getElementById("practice-title").textContent="Practice not found";
-        document.getElementById("practice-meta").textContent="This practice record does not exist.";
+    doc(db, "practices", id),
+    snapshot => {
+      if (!snapshot.exists()) {
+        document.getElementById("practice-title").textContent = "Practice not found";
+        document.getElementById("practice-meta").textContent = "This practice record does not exist.";
         return;
       }
-      practice={id:snapshot.id,...snapshot.data()};
+      practice = { id: snapshot.id, ...snapshot.data() };
       render();
     },
-    error=>{
-      console.error("Practice read failed:",error);
-      document.getElementById("practice-title").textContent="Unable to load practice";
-      document.getElementById("practice-meta").textContent=error.message;
+    error => {
+      console.error("Practice read failed:", error);
+      document.getElementById("practice-title").textContent = "Unable to load practice";
+      document.getElementById("practice-meta").textContent = error.message;
     }
   );
 
   onSnapshot(
-    collection(db,"practices",id,"logs"),
-    snapshot=>{
-      logs=snapshot.docs.map(item=>({id:item.id,...item.data()}));
+    collection(db, "practices", id, "logs"),
+    snapshot => {
+      logs = snapshot.docs.map(function(item) {
+        return { id: item.id, ...item.data() };
+      });
       render();
     },
-    error=>{
-      console.error("Practice logs failed:",error);
-      document.getElementById("accomplishments").innerHTML='<div class="notice notice-danger">Logs could not be loaded: '+esc(error.message)+'</div>';
+    error => {
+      console.error("Practice logs failed:", error);
+      document.getElementById("team-tasks").innerHTML =
+        '<div class="notice notice-danger">Logs could not be loaded: ' + esc(error.message) + '</div>';
     }
   );
 
   onSnapshot(
-    collection(db,"users"),
-    snapshot=>{
-      users=snapshot.docs
-        .filter(item=>item.data().active!==false)
-        .map(item=>({id:item.id,...item.data()}))
-        .sort((a,b)=>String(a.displayName||"").localeCompare(String(b.displayName||"")));
+    collection(db, "users"),
+    snapshot => {
+      users = snapshot.docs
+        .filter(function(item) { return item.data().active !== false; })
+        .map(function(item) { return { id: item.id, ...item.data() }; })
+        .sort(function(a, b) {
+          return String(a.displayName || "").localeCompare(String(b.displayName || ""));
+        });
       render();
     },
-    error=>{
-      console.error("Team read failed:",error);
-      document.getElementById("member-logs").innerHTML='<div class="notice notice-danger">Team members could not be loaded: '+esc(error.message)+'</div>';
+    error => {
+      console.error("Team read failed:", error);
+      document.getElementById("member-logs").innerHTML =
+        '<div class="notice notice-danger">Team members could not be loaded: ' + esc(error.message) + '</div>';
     }
   );
 }
