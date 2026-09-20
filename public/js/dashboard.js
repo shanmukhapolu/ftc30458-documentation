@@ -1,6 +1,6 @@
 import { db } from "./firebase.js?v=20260918-03";
 import { collection, doc, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=20260918-03";
+import { showToast } from "./ui.js?v=20260920-01";
 
 let currentUser = null;
 let practices = [];
@@ -87,7 +87,7 @@ function render() {
     ? overdue.slice(0,10).map(p=>{
         const key=p.dateKey||p.id;
         const days=Math.max(1,Math.round((new Date(today+"T00:00:00")-new Date(key+"T00:00:00"))/86400000));
-        return '<div class="overdue-item"><div><strong>'+esc(formatDateKey(key))+'</strong><span>'+(days===1?"1 day overdue":days+" days overdue")+'</span></div><a class="btn btn-outline btn-sm" href="./my-log.html?practiceId='+encodeURIComponent(p.id)+'">Log it</a></div>';
+        return '<div class="overdue-item"><div><strong>'+esc(formatDateKey(key))+'</strong><span>'+(days===1?"1 day overdue":days+" days overdue")+'</span></div><a class="btn btn-outline btn-sm" href="./log-entry.html?practiceId='+encodeURIComponent(p.id)+'">Log it</a></div>';
       }).join("")
     : '<div class="notice notice-success">You are caught up. No past practice logs are missing.</div>';
 
@@ -108,7 +108,7 @@ function render() {
         const av=a.updatedAt?.toMillis?a.updatedAt.toMillis():0;
         const bv=b.updatedAt?.toMillis?b.updatedAt.toMillis():0;
         return bv-av;
-      }).slice(0,8).map(log=>'<div class="activity-row"><div class="activity-dot"></div><div class="activity-copy"><strong>'+esc(log.memberName||log.memberEmail||"Team Member")+" — "+esc(log.majorAccomplishment||"Updated a practice log.")+'</strong><span>Latest practice</span></div></div>').join("")
+      }).slice(0,8).map(log=>{ const taskText=Array.isArray(log.tasks)&&log.tasks.length?log.tasks[0].text:(log.majorAccomplishment||"Updated a practice log."); return '<div class="activity-row"><div class="activity-dot"></div><div class="activity-copy"><strong>'+esc(log.memberName||log.memberEmail||"Team Member")+" — "+esc(taskText)+'</strong><span>Latest practice</span></div></div>'; }).join("")
     : '<div class="empty-state"><p>No member documentation has been saved yet.</p></div>';
 }
 
