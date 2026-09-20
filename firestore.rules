@@ -12,8 +12,6 @@ service cloud.firestore {
     }
 
     // All authenticated team members can read the shared documentation.
-    // Writes remain scoped below to prevent members from editing another
-    // person's profile or log.
     match /{document=**} {
       allow read: if signedIn();
     }
@@ -25,10 +23,18 @@ service cloud.firestore {
 
     match /practices/{practiceId} {
       allow create, update: if signedIn();
-      allow delete: if false;
+      // A practice must be explicitly marked as deleting before its document
+      // can be removed. The client marks it first, removes all child logs,
+      // then deletes the parent document.
+      allow delete: if signedIn() && resource.data.deleting == true;
 
       match /logs/{uid} {
-        allow create, update, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid);
+        // A member may delete their own log. During a confirmed practice
+        // deletion, the cleanup routine may delete every child log.
+        allow delete: if isOwner(uid) ||
+          (signedIn() &&
+           get(/databases/$(database)/documents/practices/$(practiceId)).data.deleting == true);
       }
     }
   }
