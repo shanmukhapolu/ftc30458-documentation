@@ -1,4 +1,4 @@
-import { db } from "./firebase.js?v=20260918-03";
+import { db } from "./firebase.js?v=20260920-02";
 import {
   collection,
   doc,
@@ -6,7 +6,8 @@ import {
   setDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=20260918-03";
+import { showToast } from "./ui.js?v=20260920-02";
+import { deletePracticeCompletely } from "./practice-delete.js?v=20260920-02";
 
 let currentUser=null;
 let practices=[];
@@ -59,13 +60,55 @@ function render(){
     const logs=allLogsByPractice.get(p.id)||[];
     const mine=logs.some(log=>log.id===currentUser.uid);
 
-    return '<article class="practice-row" tabindex="0" data-id="'+esc(p.id)+'"><div class="practice-number">LOG<div class="practice-date">Practice</div></div><div class="practice-main"><h3 class="practice-title">'+esc(formatDateKey(key))+'</h3><p class="practice-description">'+logs.length+' member '+(logs.length===1?"log":"logs")+' documented.</p><div class="practice-meta"><span>One log per member</span><span>•</span><span>Editable anytime</span><span>•</span><span>Live synced</span></div></div><div class="practice-side"><span class="chip '+(mine?"chip-success":"chip-warning")+'">'+(mine?"Your log saved":"Your log missing")+'</span></div></article>';
+    return '<article class="practice-row" tabindex="0" data-id="'+esc(p.id)+'">' +
+      '<div class="practice-number">LOG<div class="practice-date">Practice</div></div>' +
+      '<div class="practice-main"><h3 class="practice-title">'+esc(formatDateKey(key))+'</h3>' +
+        '<p class="practice-description">'+logs.length+' member '+(logs.length===1?"log":"logs")+' documented.</p>' +
+        '<div class="practice-meta"><span>One log per member</span><span>•</span><span>Editable anytime</span><span>•</span><span>Live synced</span></div>' +
+      '</div>' +
+      '<div class="practice-side">' +
+        '<span class="chip '+(mine?"chip-success":"chip-warning")+'">'+(mine?"Your log saved":"Your log missing")+'</span>' +
+        '<button class="btn btn-danger btn-sm" type="button" data-delete-practice="'+esc(p.id)+'">Delete</button>' +
+      '</div>' +
+    '</article>';
   }).join("");
 
+  list.querySelectorAll("[data-delete-practice]").forEach(button=>{
+    button.addEventListener("click",async event=>{
+      event.stopPropagation();
+      const practiceId=button.dataset.deletePractice;
+      const practice=practices.find(item=>item.id===practiceId);
+      if(!practice)return;
+
+      const date=formatDateKey(practice.dateKey||practice.id);
+      const confirmed=window.confirm(
+        "Delete "+date+" permanently?\n\nThis will permanently delete the practice and every member log stored under it in Firebase. This cannot be undone."
+      );
+      if(!confirmed)return;
+
+      button.disabled=true;
+      button.textContent="Deleting…";
+
+      try{
+        const result=await deletePracticeCompletely(practiceId);
+        showToast(date+" was permanently deleted. "+result.deletedLogCount+" member "+(result.deletedLogCount===1?"log":"logs")+" removed.","success",5000);
+      }catch(error){
+        console.error("Practice deletion failed:",error);
+        showToast("Practice deletion failed: "+error.message,"error",8000);
+        button.disabled=false;
+        button.textContent="Delete";
+      }
+    });
+  });
+
   list.querySelectorAll("[data-id]").forEach(row=>{
-    row.addEventListener("click",()=>location.href="./practice.html?id="+encodeURIComponent(row.dataset.id));
+    row.addEventListener("click",event=>{
+      if(event.target.closest("[data-delete-practice]"))return;
+      location.href="./practice.html?id="+encodeURIComponent(row.dataset.id);
+    });
     row.addEventListener("keydown",e=>{
       if(e.key==="Enter"||e.key===" "){
+        if(e.target.closest("[data-delete-practice]"))return;
         e.preventDefault();
         location.href="./practice.html?id="+encodeURIComponent(row.dataset.id);
       }
@@ -146,6 +189,7 @@ export function initializePractices(user){
     snapshot=>{
       practices=snapshot.docs
         .map(item=>({id:item.id,...item.data()}))
+        .filter(item=>item.deleting!==true)
         .sort((a,b)=>String(b.dateKey||b.id).localeCompare(String(a.dateKey||a.id)));
 
       syncLogListeners();
