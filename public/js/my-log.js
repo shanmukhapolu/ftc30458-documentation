@@ -177,7 +177,7 @@ function render() {
   document.getElementById("stat-today").textContent = hasToday ? "Logged" : "Missing";
   document.getElementById("stat-today-meta").textContent = hasToday
     ? "Today is documented"
-    : "Start today&apos;s documentation";
+    : "Start today's documentation";
 
   if (!decorated.length) {
     list.innerHTML =
