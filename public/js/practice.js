@@ -1,4 +1,5 @@
-import { db } from "./firebase.js?v=20260920-01";
+import { db } from "./firebase.js?v=20260920-02";
+import { deletePracticeCompletely } from "./practice-delete.js?v=20260920-02";
 import {
   collection,
   doc,
@@ -9,6 +10,7 @@ let currentUser = null;
 let practice = null;
 let logs = [];
 let users = [];
+let deleting = false;
 
 const LEGACY_CATEGORY = "General";
 
@@ -307,6 +309,37 @@ export function initializePracticePage(user) {
   editButton.addEventListener("click", function() {
     window.location.href = "./log-entry.html?practiceId=" + encodeURIComponent(id);
   });
+
+  const deleteButton = document.getElementById("delete-practice");
+  if (deleteButton) {
+    deleteButton.addEventListener("click", async function() {
+      if (deleting) return;
+
+      const date = practice ? formatDateKey(practice.dateKey || practice.id) : "this practice";
+      const confirmed = window.confirm(
+        "Delete " + date + " permanently?\\n\\nThis will permanently delete the practice and every member log stored under it in Firebase. This cannot be undone."
+      );
+      if (!confirmed) return;
+
+      deleting = true;
+      deleteButton.disabled = true;
+      editButton.disabled = true;
+      deleteButton.textContent = "Deleting…";
+
+      try {
+        const result = await deletePracticeCompletely(id);
+        alert(date + " was permanently deleted. " + result.deletedLogCount + " member " + (result.deletedLogCount === 1 ? "log" : "logs") + " were removed.");
+        window.location.replace("./practices.html");
+      } catch (error) {
+        console.error("Practice deletion failed:", error);
+        alert("Practice deletion failed: " + error.message);
+        deleting = false;
+        deleteButton.disabled = false;
+        editButton.disabled = false;
+        deleteButton.textContent = "Delete Practice";
+      }
+    });
+  }
   closeButton.addEventListener("click", closeModal);
   modal.addEventListener("click", function(event) {
     if (event.target === modal) closeModal();
