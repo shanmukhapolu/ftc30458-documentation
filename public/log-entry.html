@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Practice Log | FTC 30458 Engineering Log</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500,600,700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/app.css?v=20260920-01">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <div id="app-shell"></div>
+
+  <script type="module">
+    import { requireAuth, attachLogout } from "./js/auth.js?v=20260920-01";
+    import { renderShell } from "./js/shell.js?v=20260920-01";
+    import { initializeLogEntry } from "./js/log-entry.js?v=20260920-01";
+
+    requireAuth(async function(user) {
+      renderShell({ active: "my-log", title: "Practice Log", user: user });
+
+      document.getElementById("page-content").innerHTML =
+        '<section class="page-header">' +
+          '<a class="btn btn-outline btn-sm" href="./my-log.html" style="margin-bottom:18px">← My Logs</a>' +
+          '<div class="page-header-row">' +
+            '<div class="page-header-copy">' +
+              '<div class="eyebrow">Practice documentation</div>' +
+              '<h2 id="log-title" class="page-title">Loading…</h2>' +
+              '<p id="log-context" class="page-subtitle">Document what you accomplished, what you learned, and what comes next.</p>' +
+            '</div>' +
+            '<div class="page-actions"><span id="save-indicator" class="chip chip-neutral">Not saved yet</span></div>' +
+          '</div>' +
+        '</section>' +
+
+        '<section class="log-editor-layout">' +
+          '<main class="card-shell log-editor-card">' +
+            '<div class="log-editor-section">' +
+              '<div class="log-editor-section-head"><div><h3>Tasks completed</h3><p>Add each concrete thing you did as its own bullet. Choose the category for every task.</p></div></div>' +
+              '<ul id="task-editor-list" class="task-editor-list"></ul>' +
+              '<button id="add-task" class="btn btn-outline btn-sm" type="button">+ Add task</button>' +
+            '</div>' +
+
+            '<div class="log-editor-section">' +
+              '<div class="log-editor-section-head"><div><h3>Reflection</h3><p>Keep the reflection specific to what changed, what you learned, or what you discovered.</p></div></div>' +
+              '<div class="form-group"><label class="form-label" for="learned">What did you learn from today&apos;s practice?</label><textarea id="learned" class="form-textarea" rows="5" placeholder="Describe the most useful technical, design, teamwork, or problem-solving lesson from today."></textarea></div>' +
+            '</div>' +
+
+            '<div class="log-editor-section">' +
+              '<div class="log-editor-section-head"><div><h3>Next steps</h3><p>Every next step must be its own bullet and must have a category.</p></div></div>' +
+              '<ul id="next-step-editor-list" class="task-editor-list"></ul>' +
+              '<button id="add-next-step" class="btn btn-outline btn-sm" type="button">+ Add next step</button>' +
+            '</div>' +
+          '</main>' +
+
+          '<aside class="side-panel">' +
+            '<div class="summary-card">' +
+              '<div class="eyebrow">Log summary</div>' +
+              '<h3 style="font-size:1rem;margin-bottom:13px">Before you save</h3>' +
+              '<div class="summary-stat"><span>Tasks</span><strong id="sum-tasks">0</strong></div>' +
+              '<div class="summary-stat"><span>Categories</span><strong id="sum-categories">0</strong></div>' +
+              '<div class="summary-stat"><span>Learned</span><strong id="sum-learned">Missing</strong></div>' +
+              '<div class="summary-stat"><span>Next steps</span><strong id="sum-next-steps">0</strong></div>' +
+              '<div class="form-hint" style="margin-top:15px">Use concrete action statements such as “Built a mecanum chassis” rather than a paragraph describing the whole practice.</div>' +
+            '</div>' +
+          '</aside>' +
+        '</section>' +
+
+        '<div class="save-bar">' +
+          '<div class="save-status"><strong id="save-title">Ready</strong><span id="save-detail">Your changes stay local until you save.</span></div>' +
+          '<div class="save-actions"><a class="btn btn-outline" href="./my-log.html">Cancel</a><button id="save-log" class="btn btn-primary" type="button">Save Log</button></div>' +
+        '</div>';
+
+      attachLogout("#logout-button");
+      initializeLogEntry(user);
+    });
+  </script>
+</body>
+</html>
