@@ -249,10 +249,10 @@ function populateExistingLog(log) {
 
 function collectData() {
   const cleanTasks = tasks
-    .map(normalizeTask)
+    .map(function(task) { return normalizeTask(task, task.category); })
     .filter(function(task) { return task.text; });
   const cleanNextSteps = nextSteps
-    .map(normalizeTask)
+    .map(function(step) { return normalizeTask(step, step.category); })
     .filter(function(step) { return step.text; });
 
   return {
