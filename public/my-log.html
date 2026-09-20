@@ -3,52 +3,53 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Log | FTC 30458 Engineering Log</title>
+  <title>My Logs | FTC 30458 Engineering Log</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/app.css">
+  <link rel="stylesheet" href="./css/app.css?v=20260920-01">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 </head>
 <body>
   <div id="app-shell"></div>
 
   <script type="module">
-    import { requireAuth, attachLogout } from "./js/auth.js?v=20260918-03";
-    import { renderShell } from "./js/shell.js?v=20260918-03";
-    import { initializePracticeLog } from "./js/my-log.js?v=20260918-03";
+    import { requireAuth, attachLogout } from "./js/auth.js?v=20260920-01";
+    import { renderShell } from "./js/shell.js?v=20260920-01";
+    import { initializeMyLogs } from "./js/my-log.js?v=20260920-01";
 
     requireAuth(async function(user) {
-      renderShell({ active: "my-log", title: "My Log", user: user });
+      renderShell({ active: "my-log", title: "My Logs", user: user });
 
       document.getElementById("page-content").innerHTML =
         '<section class="page-header">' +
-          '<div class="page-header-row"><div class="page-header-copy">' +
-            '<div class="eyebrow">Personal documentation</div><h2 class="page-title">My Practice Log</h2>' +
-            '<p id="practice-context" class="page-subtitle">Loading practice…</p>' +
-          '</div><div class="page-actions"><span id="save-indicator" class="chip chip-neutral">Not saved yet</span></div></div>' +
+          '<div class="page-header-row">' +
+            '<div class="page-header-copy">' +
+              '<div class="eyebrow">Personal documentation</div>' +
+              '<h2 class="page-title">My Logs</h2>' +
+              '<p class="page-subtitle">Every practice you have documented, with the tasks, categories, reflections, and next steps you recorded.</p>' +
+            '</div>' +
+            '<div class="page-actions"><button id="create-today" class="btn btn-primary" type="button">Log Today&apos;s Practice</button></div>' +
+          '</div>' +
         '</section>' +
 
-        '<div id="log-layout" class="log-layout">' +
-          '<div id="log-form"></div>' +
-          '<aside class="side-panel"><div class="summary-card">' +
-            '<div class="eyebrow">At a glance</div><h3 style="font-size:1rem;margin-bottom:13px">Your log</h3>' +
-            '<div class="summary-stat"><span>Work areas</span><strong id="sum-areas">0</strong></div>' +
-            '<div class="summary-stat"><span>Quick phrases</span><strong id="sum-presets">0</strong></div>' +
-            '<div class="summary-stat"><span>Accomplishment</span><strong id="sum-accomplishment">Missing</strong></div>' +
-            '<div class="summary-stat"><span>Lesson</span><strong id="sum-lesson">Missing</strong></div>' +
-            '<div class="summary-stat"><span>Next step</span><strong id="sum-next">Missing</strong></div>' +
-            '<div class="form-hint" style="margin-top:15px">The goal is useful evidence, not a long essay. Be specific about what changed and what happened.</div>' +
-          '</div></aside>' +
-        '</div>' +
+        '<section class="stats-grid">' +
+          '<article class="stat-card"><div class="stat-label">My logs</div><div id="stat-logs" class="stat-value">—</div><div class="stat-meta">Practices documented</div></article>' +
+          '<article class="stat-card"><div class="stat-label">Tasks</div><div id="stat-tasks" class="stat-value">—</div><div class="stat-meta">Completed tasks recorded</div></article>' +
+          '<article class="stat-card"><div class="stat-label">Next steps</div><div id="stat-next" class="stat-value">—</div><div class="stat-meta">Planned follow-up actions</div></article>' +
+          '<article class="stat-card"><div class="stat-label">Today</div><div id="stat-today" class="stat-value">—</div><div id="stat-today-meta" class="stat-meta">Checking documentation</div></article>' +
+        '</section>' +
 
-        '<div class="save-bar">' +
-          '<div class="save-status"><strong id="save-title">Ready</strong><span id="save-detail">Choose your work areas and document what you actually did.</span></div>' +
-          '<div class="save-actions"><button id="cancel-log" class="btn btn-outline" type="button">Cancel</button><button id="save-log" class="btn btn-primary" type="button">Save Log</button></div>' +
-        '</div>';
+        '<section class="card-shell my-log-toolbar" style="padding:16px;margin-bottom:22px">' +
+          '<input id="log-search" class="form-input" type="search" placeholder="Search dates, tasks, categories, or reflections…">' +
+        '</section>' +
+
+        '<section id="my-log-list" class="personal-log-list">' +
+          '<div class="card-shell"><div class="loading">Loading your logs…</div></div>' +
+        '</section>';
 
       attachLogout("#logout-button");
-      initializePracticeLog(user);
+      initializeMyLogs(user);
     });
   </script>
 </body>
