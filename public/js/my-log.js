@@ -1,268 +1,320 @@
-import { db } from "./firebase.js?v=20260918-03";
-import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=20260918-03";
+import { db } from "./firebase.js?v=20260920-01";
+import {
+  collection,
+  collectionGroup,
+  doc,
+  onSnapshot,
+  serverTimestamp,
+  setDoc
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { showToast } from "./ui.js?v=20260920-01";
 
 let currentUser = null;
-let practice = null;
-let existingLog = null;
-let selectedPresets = [];
+let logs = [];
+let practices = new Map();
 
-const areaDefinitions = {
-  Mechanical:{description:"Building and physical mechanisms",fields:[["activity","What did you build or change?","textarea"],["result","What happened when you tested it?","textarea"],["next","What should happen next?","input"]],presets:["Built or modified a robot mechanism.","Iterated on a physical prototype.","Changed the geometry or mounting of a robot component.","Repaired or replaced a robot component."]},
-  Electrical:{description:"Wiring, motors, sensors and hardware",fields:[["activity","What electrical work did you do?","textarea"],["problem","What problem did you diagnose?","textarea"],["result","What changed after your work?","textarea"]],presets:["Wired or rewired a robot subsystem.","Installed or configured a motor, servo, or sensor.","Troubleshot an electrical issue.","Improved wiring organization or reliability."]},
-  CAD:{description:"Onshape and mechanical design",fields:[["project","What component or project did you work on?","input"],["activity","What did you design or change?","textarea"],["reason","Why did the design change?","textarea"],["result","What happened after the design change?","textarea"]],presets:["Created a new component or assembly in Onshape.","Modified an existing robot component or assembly.","Designed a bracket or mounting system.","Updated geometry based on testing.","Prepared a part for manufacturing."]},
-  Programming:{description:"Robot software and control",fields:[["activity","What code did you write or change?","textarea"],["tools","Which systems did you use?","input"],["bug","What bug or unexpected behavior did you encounter?","textarea"],["solution","How did you solve or address it?","textarea"],["result","What changed after testing?","textarea"]],presets:["Wrote code for the intake of the robot.","Wrote code for the shooter of the robot.","Wrote code for the drivetrain of the robot.","Configured PID or PIDF for more consistent control.","Implemented or improved robot controls.","Fixed a software bug or unexpected behavior."]},
-  Autonomous:{description:"Autonomous routines and pathing",fields:[["activity","What autonomous work did you do?","textarea"],["tool","What system did you use?","input"],["problem","What failed or behaved unexpectedly?","textarea"],["result","What did testing show?","textarea"]],presets:["Wrote or modified an autonomous routine.","Created or changed a Pedro Pathing trajectory.","Improved autonomous localization.","Tested autonomous reliability."]},
-  TeleOp:{description:"Driver control and tuning",fields:[["activity","What did you change?","textarea"],["result","What improved or did not improve?","textarea"]],presets:["Improved TeleOp controls for the robot.","Adjusted control sensitivity or response.","Tested driver control under match-like conditions."]},
-  Vision:{description:"Limelight, AprilTags and vision",fields:[["activity","What vision work did you do?","textarea"],["tool","What system did you use?","input"],["result","What did testing show?","textarea"]],presets:["Configured Limelight vision processing.","Implemented or improved AprilTag detection.","Tested vision-based localization or alignment."]},
-  Testing:{description:"Experiments and measurements",fields:[["activity","What did you test?","textarea"],["trials","How many trials or configurations?","input"],["result","What were the results?","textarea"],["conclusion","What did the test tell you?","textarea"]],presets:["Tested multiple design or software configurations.","Collected measurements to guide an engineering decision.","Measured robot performance across repeated trials.","Compared two or more approaches."]},
-  Strategy:{description:"Game analysis and planning",fields:[["activity","What strategy work did you do?","textarea"],["decision","What did you decide and why?","textarea"]],presets:["Analyzed game scoring and strategy.","Compared different robot strategy options.","Developed a competition or match strategy."]},
-  Outreach:{description:"Events, community and partnerships",fields:[["contactCount","How many people or organizations did you contact?","input"],["contacted","Who did you contact?","input"],["activity","What did you work on?","textarea"],["result","What happened or what is the next step?","textarea"]],presets:["Contacted an organization regarding an outreach event opportunity.","Planned or coordinated an outreach event.","Coordinated with another team for mentorship or partnership.","Participated in or prepared for a community STEM event."]},
-  Sponsorship:{description:"Sponsors, fundraising and partnerships",fields:[["count","How many companies or contacts did you reach?","input"],["contacted","Who did you contact?","input"],["activity","What did you work on?","textarea"],["result","What happened or what is the next step?","textarea"]],presets:["Sent sponsor outreach emails to gain financial support for the team.","Followed up with potential sponsors.","Prepared sponsorship materials or a sponsor presentation.","Coordinated sponsor recognition or deliverables."]},
-  Manufacturing:{description:"3D printing and fabrication",fields:[["activity","What did you manufacture?","textarea"],["result","How did the manufactured part perform?","textarea"]],presets:["3D printed a component for the robot.","Manufactured a component from the CAD design.","Modified a manufactured component to improve fit or performance."]}
-};
+const LEGACY_CATEGORY = "General";
 
-function esc(value){return String(value||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");}
-function formatDateKey(key){const p=key.split("-").map(Number);return new Intl.DateTimeFormat("en-US",{month:"long",day:"numeric",year:"numeric"}).format(new Date(p[0],p[1]-1,p[2]));}
-function getSelectedAreas(){return Array.from(document.querySelectorAll('input[name="workArea"]:checked')).map(function(input){return input.value;});}
-function slug(value){return value.toLowerCase().replace(/[^a-z0-9]+/g,"-");}
-function getDynamicFieldValues(){
-  const values={};
-  document.querySelectorAll("[data-dynamic-field]").forEach(function(element){
-    values[element.id]=element.value;
+function esc(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatDateKey(key) {
+  const parts = String(key || "").split("-").map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return "Unknown practice";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  }).format(new Date(parts[0], parts[1] - 1, parts[2]));
+}
+
+function todayKey() {
+  const date = new Date();
+  return date.getFullYear() + "-" +
+    String(date.getMonth() + 1).padStart(2, "0") + "-" +
+    String(date.getDate()).padStart(2, "0");
+}
+
+function getPracticeId(log) {
+  return log.practiceId || log.id || "";
+}
+
+function getTasks(log) {
+  if (Array.isArray(log.tasks)) {
+    return log.tasks
+      .map(function(task) {
+        return {
+          text: String(task?.text || "").trim(),
+          category: String(task?.category || LEGACY_CATEGORY).trim() || LEGACY_CATEGORY
+        };
+      })
+      .filter(function(task) { return task.text; });
+  }
+
+  if (Array.isArray(log.selectedPresets) && log.selectedPresets.length) {
+    return log.selectedPresets.map(function(text, index) {
+      const areas = Array.isArray(log.workAreas) ? log.workAreas : [];
+      return {
+        text: String(text || "").trim(),
+        category: areas[index] || areas[0] || LEGACY_CATEGORY
+      };
+    }).filter(function(task) { return task.text; });
+  }
+
+  if (log.majorAccomplishment) {
+    return [{
+      text: String(log.majorAccomplishment).trim(),
+      category: Array.isArray(log.workAreas) && log.workAreas[0]
+        ? log.workAreas[0]
+        : LEGACY_CATEGORY
+    }];
+  }
+
+  return [];
+}
+
+function getNextSteps(log) {
+  if (Array.isArray(log.nextSteps)) {
+    return log.nextSteps
+      .map(function(step) {
+        return {
+          text: String(step?.text || "").trim(),
+          category: String(step?.category || LEGACY_CATEGORY).trim() || LEGACY_CATEGORY
+        };
+      })
+      .filter(function(step) { return step.text; });
+  }
+
+  if (log.nextStep) {
+    return [{
+      text: String(log.nextStep).trim(),
+      category: Array.isArray(log.workAreas) && log.workAreas[0]
+        ? log.workAreas[0]
+        : LEGACY_CATEGORY
+    }];
+  }
+
+  return [];
+}
+
+function getLearned(log) {
+  return String(log.learned || log.lesson || "").trim();
+}
+
+function categoryList(log) {
+  const set = new Set();
+  getTasks(log).forEach(function(task) { set.add(task.category); });
+  getNextSteps(log).forEach(function(step) { set.add(step.category); });
+  return Array.from(set);
+}
+
+function updatedTime(log) {
+  if (log.updatedAt?.toMillis) return log.updatedAt.toMillis();
+  if (log.createdAt?.toMillis) return log.createdAt.toMillis();
+  return 0;
+}
+
+function render() {
+  const list = document.getElementById("my-log-list");
+  const searchInput = document.getElementById("log-search");
+  if (!list || !searchInput) return;
+
+  const search = searchInput.value.trim().toLowerCase();
+
+  const decorated = logs
+    .map(function(log) {
+      const practiceId = getPracticeId(log);
+      const practice = practices.get(practiceId) || {};
+      const dateKey = practice.dateKey || practiceId;
+      return {
+        ...log,
+        practiceId,
+        practice,
+        dateKey,
+        tasks: getTasks(log),
+        nextSteps: getNextSteps(log),
+        learned: getLearned(log),
+        categories: categoryList(log)
+      };
+    })
+    .filter(function(log) {
+      if (!search) return true;
+      const haystack = [
+        formatDateKey(log.dateKey),
+        log.tasks.map(function(task) { return task.text; }).join(" "),
+        log.categories.join(" "),
+        log.learned,
+        log.nextSteps.map(function(step) { return step.text; }).join(" ")
+      ].join(" ").toLowerCase();
+      return haystack.includes(search);
+    })
+    .sort(function(a, b) {
+      return String(b.dateKey || b.practiceId).localeCompare(String(a.dateKey || a.practiceId));
+    });
+
+  const allLogs = logs.map(function(log) {
+    return {
+      tasks: getTasks(log),
+      nextSteps: getNextSteps(log),
+      dateKey: practices.get(getPracticeId(log))?.dateKey || getPracticeId(log)
+    };
   });
-  return values;
-}
 
-function syncPresetValidity(selected){
-  const valid = new Set();
-  selected.forEach(function(area){(areaDefinitions[area].presets||[]).forEach(function(item){valid.add(item);});});
-  selectedPresets = selectedPresets.filter(function(item){return valid.has(item);});
-}
+  const totalTasks = allLogs.reduce(function(sum, log) { return sum + log.tasks.length; }, 0);
+  const totalNext = allLogs.reduce(function(sum, log) { return sum + log.nextSteps.length; }, 0);
+  const today = todayKey();
+  const hasToday = allLogs.some(function(log) { return log.dateKey === today; });
 
-function renderForm(){
-  const form=document.getElementById("log-form");
-  const areas=Object.keys(areaDefinitions).map(function(area){
-    const def=areaDefinitions[area];
-    return '<div class="work-area-option"><input id="area-'+slug(area)+'" type="checkbox" name="workArea" value="'+esc(area)+'"><label for="area-'+slug(area)+'"><strong>'+esc(area)+'</strong><span>'+esc(def.description)+'</span></label></div>';
+  document.getElementById("stat-logs").textContent = logs.length;
+  document.getElementById("stat-tasks").textContent = totalTasks;
+  document.getElementById("stat-next").textContent = totalNext;
+  document.getElementById("stat-today").textContent = hasToday ? "Logged" : "Missing";
+  document.getElementById("stat-today-meta").textContent = hasToday
+    ? "Today is documented"
+    : "Start today&apos;s documentation";
+
+  if (!decorated.length) {
+    list.innerHTML =
+      '<div class="card-shell personal-empty">' +
+        '<div class="empty-state">' +
+          '<div class="empty-icon">▣</div>' +
+          '<h3>No logs found</h3>' +
+          '<p>' + (logs.length ? "Try a different search." : "Your practice logs will appear here after you save one.") + '</p>' +
+        '</div>' +
+      '</div>';
+    return;
+  }
+
+  list.innerHTML = decorated.map(function(log) {
+    const preview = log.tasks.slice(0, 3);
+    const extra = Math.max(0, log.tasks.length - preview.length);
+    const categories = log.categories.slice(0, 5);
+
+    return '<article class="personal-log-card" tabindex="0" data-log-id="' + esc(log.practiceId) + '">' +
+      '<div class="personal-log-card-main">' +
+        '<div class="personal-log-card-header">' +
+          '<div>' +
+            '<div class="eyebrow">Practice</div>' +
+            '<h3>' + esc(formatDateKey(log.dateKey)) + '</h3>' +
+          '</div>' +
+          '<span class="chip chip-success">' + log.tasks.length + ' task' + (log.tasks.length === 1 ? '' : 's') + '</span>' +
+        '</div>' +
+        '<div class="chip-row">' + categories.map(function(category) {
+          return '<span class="chip chip-primary">' + esc(category) + '</span>';
+        }).join("") + '</div>' +
+        '<ul class="compact-bullet-list">' +
+          preview.map(function(task) {
+            return '<li><span class="category-dot">' + esc(task.category) + '</span>' + esc(task.text) + '</li>';
+          }).join("") +
+          (extra ? '<li class="muted-bullet">+' + extra + ' more task' + (extra === 1 ? '' : 's') + '</li>' : '') +
+        '</ul>' +
+      '</div>' +
+      '<div class="personal-log-card-side">' +
+        '<div><span class="log-side-label">Learned</span><span class="log-side-value">' + (log.learned ? 'Added' : 'Missing') + '</span></div>' +
+        '<div><span class="log-side-label">Next steps</span><span class="log-side-value">' + log.nextSteps.length + '</span></div>' +
+        '<div><span class="log-side-label">Updated</span><span class="log-side-value">' + (updatedTime(log) ? new Intl.DateTimeFormat("en-US", { month:"short", day:"numeric" }).format(new Date(updatedTime(log))) : "—") + '</span></div>' +
+        '<a class="btn btn-outline btn-sm" href="./practice.html?id=' + encodeURIComponent(log.practiceId) + '" data-practice-link>View practice</a>' +
+      '</div>' +
+    '</article>';
   }).join("");
 
-  form.innerHTML=
-    '<section class="card-shell" style="padding:22px;margin-bottom:16px"><div class="area-heading"><h3>What did you work on?</h3><span>Select all that apply</span></div><div class="work-area-grid">'+areas+'</div></section>'+
-    '<div id="dynamic-sections"></div>'+
-    '<section class="card-shell" style="padding:22px;margin-bottom:16px"><div class="area-heading"><h3>Main accomplishment</h3><span>Make the result obvious</span></div>'+
-      '<div class="form-group"><label class="form-label">Quick phrases</label><div id="global-presets" class="preset-list"></div><div class="form-hint">Click to add. Click again to remove.</div></div>'+
-      '<div class="form-group"><label class="form-label" for="major-accomplishment">Your accomplishment</label><textarea id="major-accomplishment" class="form-textarea" placeholder="What is the clearest thing you accomplished today?"></textarea></div>'+
-      '<div class="form-row"><div class="form-group"><label class="form-label" for="lesson">What did you learn?</label><textarea id="lesson" class="form-textarea" placeholder="Technical lesson, design lesson, workflow lesson…"></textarea></div>'+
-      '<div class="form-group"><label class="form-label" for="next-step">What should happen next?</label><textarea id="next-step" class="form-textarea" placeholder="The next concrete step…"></textarea></div></div>'+
-    '</section>';
-
-  document.querySelectorAll('input[name="workArea"]').forEach(function(input){
-    input.addEventListener("change",function(){
-      const draftValues=getDynamicFieldValues();
-      renderDynamicSections(draftValues);
-      updateSummary();
+  list.querySelectorAll("[data-log-id]").forEach(function(card) {
+    card.addEventListener("click", function(event) {
+      if (event.target.closest("[data-practice-link]")) return;
+      window.location.href = "./log-entry.html?practiceId=" + encodeURIComponent(card.dataset.logId);
     });
-  });
-
-  document.getElementById("major-accomplishment").addEventListener("input",function(){this.dataset.manual="true";updateSummary();});
-  document.getElementById("lesson").addEventListener("input",updateSummary);
-  document.getElementById("next-step").addEventListener("input",updateSummary);
-
-  renderDynamicSections();
-}
-
-function renderDynamicSections(preserveValues={}){
-  const container=document.getElementById("dynamic-sections");
-  const selected=getSelectedAreas();
-  syncPresetValidity(selected);
-
-  container.innerHTML=selected.map(function(area){
-    const def=areaDefinitions[area];
-    const fields=def.fields.map(function(field){
-      const id=slug(area)+"-"+field[0];
-      if(field[2]==="textarea"){
-        return '<div class="form-group"><label class="form-label" for="'+id+'">'+esc(field[1])+'</label><textarea id="'+id+'" data-dynamic-field class="form-textarea" rows="4"></textarea></div>';
+    card.addEventListener("keydown", function(event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        window.location.href = "./log-entry.html?practiceId=" + encodeURIComponent(card.dataset.logId);
       }
-      return '<div class="form-group"><label class="form-label" for="'+id+'">'+esc(field[1])+'</label><input id="'+id+'" data-dynamic-field class="form-input" type="'+(field[0].toLowerCase().includes("count")?"number":"text")+'"></div>';
-    }).join("");
-
-    return '<section class="card-shell dynamic-area visible" style="padding:22px;margin-bottom:16px"><div class="area-heading"><h3>'+esc(area)+'</h3><span>'+esc(def.description)+'</span></div>'+
-      '<div class="preset-list" data-area-presets="'+esc(area)+'" style="margin-bottom:16px"></div><div class="form-row">'+fields+'</div></section>';
-  }).join("");
-
-  Object.keys(preserveValues).forEach(function(id){
-    const element=document.getElementById(id);
-    if(element)element.value=preserveValues[id];
-  });
-
-  selected.forEach(function(area){
-    const presetContainer=document.querySelector('[data-area-presets="'+CSS.escape(area)+'"]');
-    if(!presetContainer)return;
-    const def=areaDefinitions[area];
-
-    presetContainer.innerHTML=def.presets.map(function(text){
-      const selectedClass=selectedPresets.includes(text)?" selected":"";
-      return '<button type="button" class="preset-button'+selectedClass+'" data-preset="'+esc(text)+'">'+esc(text)+'</button>';
-    }).join("");
-
-    presetContainer.querySelectorAll("[data-preset]").forEach(function(button){
-      button.addEventListener("click",function(){
-        const text=button.dataset.preset;
-        if(selectedPresets.includes(text)){
-          selectedPresets=selectedPresets.filter(function(item){return item!==text;});
-        }else{
-          selectedPresets.push(text);
-        }
-        button.classList.toggle("selected",selectedPresets.includes(text));
-
-        const field=document.getElementById("major-accomplishment");
-        if(selectedPresets.length && !field.dataset.manual){
-          field.value=selectedPresets.join(" ");
-        }
-        if(!selectedPresets.length && !field.dataset.manual){
-          field.value="";
-        }
-        updateSummary();
-      });
     });
   });
 }
 
-function collectData(){
-  const workAreas=getSelectedAreas();
-  const details={};
+async function createToday() {
+  const key = todayKey();
+  const button = document.getElementById("create-today");
+  button.disabled = true;
+  button.textContent = "Opening…";
 
-  workAreas.forEach(function(area){
-    const def=areaDefinitions[area];
-    details[area]={};
-    def.fields.forEach(function(field){
-      const element=document.getElementById(slug(area)+"-"+field[0]);
-      if(element)details[area][field[0]]=element.value.trim();
-    });
-  });
-
-  return {
-    practiceId:practice.id,
-    userId:currentUser.uid,
-    memberName:currentUser.displayName||(currentUser.email?currentUser.email.split("@")[0]:"Team Member"),
-    memberEmail:currentUser.email||"",
-    workAreas:workAreas,
-    selectedPresets:selectedPresets,
-    majorAccomplishment:document.getElementById("major-accomplishment").value.trim(),
-    lesson:document.getElementById("lesson").value.trim(),
-    nextStep:document.getElementById("next-step").value.trim(),
-    details:details,
-    updatedAt:serverTimestamp(),
-    createdAt:existingLog&&existingLog.createdAt?existingLog.createdAt:serverTimestamp()
-  };
-}
-
-function populateExistingLog(log){
-  existingLog=log||null;
-  const selected=Array.isArray(log&&log.workAreas)?log.workAreas:[];
-  selectedPresets=Array.isArray(log&&log.selectedPresets)?log.selectedPresets.slice():[];
-
-  document.querySelectorAll('input[name="workArea"]').forEach(function(input){input.checked=selected.includes(input.value);});
-  renderDynamicSections();
-
-  selected.forEach(function(area){
-    const values=(log.details&&log.details[area])||{};
-    (areaDefinitions[area]||{fields:[]}).fields.forEach(function(field){
-      const element=document.getElementById(slug(area)+"-"+field[0]);
-      if(element&&values[field[0]]!==undefined)element.value=values[field[0]];
-    });
-  });
-
-  document.getElementById("major-accomplishment").value=log.majorAccomplishment||"";
-  document.getElementById("lesson").value=log.lesson||"";
-  document.getElementById("next-step").value=log.nextStep||"";
-  document.getElementById("major-accomplishment").dataset.manual=log.majorAccomplishment&&selectedPresets.length?"true":"";
-
-  updateSummary();
-  updateSaveIndicator("Saved");
-}
-
-function updateSummary(){
-  const areas=getSelectedAreas();
-  const accomplishment=document.getElementById("major-accomplishment");
-  const lesson=document.getElementById("lesson");
-  const next=document.getElementById("next-step");
-
-  document.getElementById("sum-areas").textContent=areas.length;
-  document.getElementById("sum-presets").textContent=selectedPresets.length;
-  document.getElementById("sum-accomplishment").textContent=accomplishment.value.trim()?"Added":"Missing";
-  document.getElementById("sum-lesson").textContent=lesson.value.trim()?"Added":"Missing";
-  document.getElementById("sum-next").textContent=next.value.trim()?"Added":"Missing";
-}
-
-function updateSaveIndicator(text){
-  document.getElementById("save-indicator").textContent=text;
-  document.getElementById("save-title").textContent=text;
-  document.getElementById("save-detail").textContent=text==="Saved"?"Everyone can see your latest version immediately.":"Changes stay in this form until you save.";
-}
-
-async function saveLog(){
-  const data=collectData();
-
-  if(!data.workAreas.length){showToast("Select at least one work area.","warning");return;}
-  if(!data.majorAccomplishment){showToast("Add your major accomplishment.","warning");return;}
-  if(!data.lesson){showToast("Add at least one lesson learned.","warning");return;}
-
-  const button=document.getElementById("save-log");
-  button.disabled=true;
-  button.textContent="Saving…";
-
-  try{
-    await setDoc(doc(db,"practices",practice.id,"logs",currentUser.uid),data,{merge:true});
-    existingLog=data;
-    updateSaveIndicator("Saved");
-    showToast("Your log is saved and synced.","success");
-  }catch(error){
-    console.error(error);
-    showToast("Unable to save your log.","error");
-  }finally{
-    button.disabled=false;
-    button.textContent="Save Log";
-  }
-}
-
-export async function initializePracticeLog(user){
-  currentUser=user;
-  const params=new URLSearchParams(window.location.search);
-  const practiceId=params.get("practiceId");
-
-  if(!practiceId){window.location.href="./practices.html";return;}
-
-  let practiceSnapshot;
   try {
-    practiceSnapshot=await getDoc(doc(db,"practices",practiceId));
-  } catch(error) {
-    console.error("Practice read failed:",error);
-    document.getElementById("practice-context").textContent="Unable to load practice: "+error.message;
-    showToast("Firestore could not read this practice: "+error.message,"error",7000);
+    await setDoc(doc(db, "practices", key), {
+      title: formatDateKey(key),
+      dateKey: key,
+      createdBy: currentUser.uid,
+      createdByEmail: currentUser.email || "",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    window.location.href = "./log-entry.html?practiceId=" + encodeURIComponent(key);
+  } catch (error) {
+    console.error("Failed to create practice:", error);
+    showToast("Could not open today's practice: " + error.message, "error", 7000);
+    button.disabled = false;
+    button.textContent = "Log Today's Practice";
+  }
+}
+
+export function initializeMyLogs(user) {
+  currentUser = user;
+
+  const queryPracticeId = new URLSearchParams(window.location.search).get("practiceId");
+  if (queryPracticeId) {
+    window.location.replace("./log-entry.html?practiceId=" + encodeURIComponent(queryPracticeId));
     return;
   }
-  if(!practiceSnapshot.exists()){
-    document.getElementById("practice-context").textContent="That practice does not exist.";
+
+  const searchInput = document.getElementById("log-search");
+  const createButton = document.getElementById("create-today");
+  if (!searchInput || !createButton) {
+    console.error("My Logs page could not initialize: required DOM elements are missing.");
     return;
   }
 
-  practice={id:practiceSnapshot.id,...practiceSnapshot.data()};
-  document.getElementById("practice-context").textContent="Document your work for "+formatDateKey(practice.dateKey||practice.id)+".";
+  searchInput.addEventListener("input", render);
+  createButton.addEventListener("click", createToday);
 
-  renderForm();
+  onSnapshot(
+    collection(db, "practices"),
+    snapshot => {
+      practices = new Map(
+        snapshot.docs.map(item => [item.id, { id: item.id, ...item.data() }])
+      );
+      render();
+    },
+    error => {
+      console.error("Practices failed:", error);
+      showToast("Practice dates could not be loaded: " + error.message, "error", 7000);
+    }
+  );
 
-  onSnapshot(doc(db,"practices",practiceId,"logs",currentUser.uid),function(snapshot){
-    if(snapshot.exists())populateExistingLog(snapshot.data());
-  },function(error){
-    console.error("Personal log read failed:",error);
-    updateSaveIndicator("Unable to load");
-    showToast("Your existing log could not be loaded: "+error.message,"error",7000);
-  });
-
-  document.getElementById("save-log").addEventListener("click",saveLog);
-  document.getElementById("cancel-log").addEventListener("click",function(){
-    window.location.href="./practice.html?id="+encodeURIComponent(practice.id);
-  });
+  onSnapshot(
+    collectionGroup(db, "logs"),
+    snapshot => {
+      logs = snapshot.docs
+        .map(item => ({
+          id: item.id,
+          practiceId: item.data().practiceId || item.ref.parent.parent?.id || "",
+          ...item.data()
+        }))
+        .filter(function(log) {
+          return log.userId === currentUser.uid || log.id === currentUser.uid;
+        });
+      render();
+    },
+    error => {
+      console.error("My logs failed:", error);
+      document.getElementById("my-log-list").innerHTML =
+        '<div class="notice notice-danger">Your logs could not be loaded: ' + esc(error.message) + '</div>';
+      showToast("Your logs could not be loaded: " + error.message, "error", 7000);
+    }
+  );
 }
