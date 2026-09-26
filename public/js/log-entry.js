@@ -6,7 +6,7 @@ import {
   serverTimestamp,
   setDoc
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=20260920-01";
+import { showToast } from "./ui.js?v=20260926-02";
 
 let currentUser = null;
 let practice = null;
@@ -15,6 +15,15 @@ let tasks = [];
 let nextSteps = [];
 let dirty = false;
 let initialHydration = true;
+
+function practiceStartMs(practice) {
+  if (Number.isFinite(Number(practice?.startAtMs))) return Number(practice.startAtMs);
+  if (practice?.dateKey) {
+    const [y,m,d] = practice.dateKey.split("-").map(Number);
+    return new Date(y,m-1,d).getTime();
+  }
+  return 0;
+}
 
 const categories = [
   "Mechanical",
@@ -359,10 +368,32 @@ export async function initializeLogEntry(user) {
   }
 
   practice = { id: practiceSnapshot.id, ...practiceSnapshot.data() };
+
+  const attendanceSnapshot = await getDoc(doc(db, "practices", practiceId, "attendance", currentUser.uid));
+  const attendance = attendanceSnapshot.exists() ? attendanceSnapshot.data() : null;
+  const future = practiceStartMs(practice) > Date.now();
+
+  if (future) {
+    document.getElementById("log-title").textContent = practice.title || "Future practice";
+    document.getElementById("log-context").textContent = "This practice has not started yet. Logging opens at the scheduled start time.";
+    document.getElementById("save-log").disabled = true;
+    setTimeout(() => window.location.replace("./practice.html?id=" + encodeURIComponent(practiceId)), 900);
+    return;
+  }
+
+  if (attendance?.status === "not_present") {
+    document.getElementById("log-title").textContent = practice.title || "Practice";
+    document.getElementById("log-context").textContent = "You are marked not present for this practice, so no log is required.";
+    document.getElementById("save-log").disabled = true;
+    setTimeout(() => window.location.replace("./practice.html?id=" + encodeURIComponent(practiceId)), 900);
+    return;
+  }
+
   const dateKey = practice.dateKey || practice.id;
-  document.getElementById("log-title").textContent = formatDateKey(dateKey);
+  document.getElementById("log-title").textContent = practice.title || formatDateKey(dateKey);
   document.getElementById("log-context").textContent =
-    "Document each concrete task, then record what you learned and what you plan to do next.";
+    "Document each concrete task, then record what you learned and what you plan to do next." +
+    (practice.startTime && practice.endTime ? " Practice time: " + practice.startTime + "–" + practice.endTime + "." : "");
 
   renderTaskEditor();
   renderNextStepEditor();
