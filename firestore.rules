@@ -14,8 +14,7 @@ service cloud.firestore {
     function practiceLoggingOpen(practiceId, uid) {
       let practice = get(/databases/$(database)/documents/practices/$(practiceId));
       return
-        (practice.data.startAtMs == null ||
-         practice.data.startAtMs <= request.time.toMillis()) &&
+        practice.data.get("startAtMs", 0) <= request.time.toMillis() &&
         (!exists(/databases/$(database)/documents/practices/$(practiceId)/attendance/$(uid)) ||
          get(/databases/$(database)/documents/practices/$(practiceId)/attendance/$(uid)).data.status != "not_present");
     }
