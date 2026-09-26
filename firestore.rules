@@ -11,7 +11,15 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
-    // All authenticated team members can read the shared documentation.
+    function practiceLoggingOpen(practiceId, uid) {
+      let practice = get(/databases/$(database)/documents/practices/$(practiceId));
+      return
+        (practice.data.startAtMs == null ||
+         practice.data.startAtMs <= request.time.toMillis()) &&
+        (!exists(/databases/$(database)/documents/practices/$(practiceId)/attendance/$(uid)) ||
+         get(/databases/$(database)/documents/practices/$(practiceId)/attendance/$(uid)).data.status != "not_present");
+    }
+
     match /{document=**} {
       allow read: if signedIn();
     }
@@ -23,15 +31,17 @@ service cloud.firestore {
 
     match /practices/{practiceId} {
       allow create, update: if signedIn();
-      // A practice must be explicitly marked as deleting before its document
-      // can be removed. The client marks it first, removes all child logs,
-      // then deletes the parent document.
       allow delete: if signedIn() && resource.data.deleting == true;
 
       match /logs/{uid} {
+        allow create, update: if isOwner(uid) && practiceLoggingOpen(practiceId, uid);
+        allow delete: if isOwner(uid) ||
+          (signedIn() &&
+           get(/databases/$(database)/documents/practices/$(practiceId)).data.deleting == true);
+      }
+
+      match /attendance/{uid} {
         allow create, update: if isOwner(uid);
-        // A member may delete their own log. During a confirmed practice
-        // deletion, the cleanup routine may delete every child log.
         allow delete: if isOwner(uid) ||
           (signedIn() &&
            get(/databases/$(database)/documents/practices/$(practiceId)).data.deleting == true);
