@@ -170,7 +170,7 @@ function syncLogListeners(){
       }
     );
     logUnsubscribers.set(practice.id,unsubscribe);
-  }
+  });
 }
 
 function syncAttendanceListeners(){
