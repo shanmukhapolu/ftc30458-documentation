@@ -7,7 +7,8 @@ import {
   serverTimestamp,
   setDoc
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=20260920-01";
+import { showToast } from "./ui.js?v=20260926-02";
+import { initializePracticeEditor, openPracticeEditor } from "./practice-editor.js?v=20260926-02";
 
 let currentUser = null;
 let logs = [];
@@ -238,29 +239,8 @@ function render() {
   });
 }
 
-async function createToday() {
-  const key = todayKey();
-  const button = document.getElementById("create-today");
-  button.disabled = true;
-  button.textContent = "Opening…";
-
-  try {
-    await setDoc(doc(db, "practices", key), {
-      title: formatDateKey(key),
-      dateKey: key,
-      createdBy: currentUser.uid,
-      createdByEmail: currentUser.email || "",
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    }, { merge: true });
-
-    window.location.href = "./log-entry.html?practiceId=" + encodeURIComponent(key);
-  } catch (error) {
-    console.error("Failed to create practice:", error);
-    showToast("Could not open today's practice: " + error.message, "error", 7000);
-    button.disabled = false;
-    button.textContent = "Log Today's Practice";
-  }
+function createToday() {
+  openPracticeEditor();
 }
 
 export function initializeMyLogs(user) {
@@ -278,6 +258,8 @@ export function initializeMyLogs(user) {
     console.error("My Logs page could not initialize: required DOM elements are missing.");
     return;
   }
+
+  initializePracticeEditor(currentUser, savedId => { if (savedId) window.location.href = "./log-entry.html?practiceId=" + encodeURIComponent(savedId); });
 
   searchInput.addEventListener("input", render);
   createButton.addEventListener("click", createToday);
