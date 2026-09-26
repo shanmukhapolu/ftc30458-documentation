@@ -6,32 +6,28 @@
   <title>Practices | FTC 30458 Engineering Log</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="./css/app.css?v=20260920-02">
+  <link rel="stylesheet" href="./css/app.css?v=20260926-02">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 </head>
 <body>
   <div id="app-shell"></div>
   <script type="module">
-    import { requireAuth, attachLogout } from "./js/auth.js?v=20260920-02";
-    import { renderShell } from "./js/shell.js?v=20260920-02";
-    import { initializePractices } from "./js/practices.js?v=20260920-02";
-
+    import { requireAuth, attachLogout } from "./js/auth.js?v=20260926-02";
+    import { renderShell } from "./js/shell.js?v=20260926-02";
+    import { initializePractices } from "./js/practices.js?v=20260926-02";
     requireAuth(async function(user) {
-      renderShell({ active: "practices", title: "Practices", user: user });
-
-      document.getElementById("page-content").innerHTML =
-        '<section class="page-header"><div class="page-header-row">' +
-          '<div class="page-header-copy"><div class="eyebrow">Engineering history</div><h2 class="page-title">Practices</h2>' +
-          '<p class="page-subtitle">One shared record per practice date. Everyone contributes their own log, and changes sync for the whole team immediately.</p></div>' +
-          '<div class="page-actions"><button id="create-practice" class="btn btn-primary" type="button">Add Practice</button></div>' +
-        '</div></section>' +
-        '<section class="card-shell" style="padding:16px;margin-bottom:22px"><div class="form-row">' +
-          '<input id="practice-search" class="form-input" type="search" placeholder="Search dates or practice notes…">' +
-          '<div class="notice notice-success" style="display:flex;align-items:center">Practices are live-synced for every team member.</div>' +
-        '</div></section>' +
+      renderShell({ active:"practices", title:"Practices", user:user });
+      document.getElementById("page-content").innerHTML=
+        '<section class="page-header"><div class="page-header-row">'+
+          '<div class="page-header-copy"><div class="eyebrow">Engineering history</div><h2 class="page-title">Practices</h2>'+
+          '<p class="page-subtitle">Create practices for past, current, or future dates. Every practice and attendance status is synced for the team.</p></div>'+
+          '<div class="page-actions"><button id="create-practice" class="btn btn-primary" type="button">Add Practice</button></div>'+
+        '</div></section>'+
+        '<section class="card-shell" style="padding:16px;margin-bottom:22px"><div class="form-row">'+
+          '<input id="practice-search" class="form-input" type="search" placeholder="Search practice names, dates, locations, or notes…">'+
+          '<div class="notice notice-success" style="display:flex;align-items:center">Future practices are visible to everyone but cannot be logged until they start.</div>'+
+        '</div></section>'+
         '<section id="practice-list" class="practice-list"><div class="card-shell"><div class="loading">Loading practices…</div></div></section>';
-
       attachLogout("#logout-button");
       initializePractices(user);
     });
