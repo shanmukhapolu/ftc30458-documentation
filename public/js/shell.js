@@ -1,9 +1,11 @@
+import { initializeThemeToggle } from "./theme.js?v=20260926-02";
+
 const icons = {
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 10 9-7 9 7"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>',
   practices: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>',
   log: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
   team: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3.5 20c.6-3.5 2.5-5 5.5-5s4.9 1.5 5.5 5M14 15.5c2.8-.2 5 .9 6 4.5"/></svg>',
-  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15.1a3.1 3.1 0 1 0 0-6.2 3.1 3.1 0 0 0 0 6.2Z"/><path d="m19.3 15.1.8 1.3-1.8 1.8-1.4-.8-1.5.6-.4 1.6h-2.6l-.4-1.6-1.5-.6-1.4.8-1.8-1.8.8-1.3-.6-1.5-1.6-.4v-2.5l1.6-.4.6-1.5-.8-1.4L8.1 5l1.4.8 1.5-.6.4-1.6H14l.4 1.6 1.4.6 1.4-.8 1.8 1.8-.8 1.4.6 1.5 1.6.4v2.5l-1.6.4-.6 1.5Z"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15.1a3.1 3.1 0 1 0 0-6.2 3.1 3.1 0 0 0 0 6.2Z"/><path d="m19.3 15.1.8 1.3-1.8 1.8-1.4-.8-1.5.6-.4 1.6-.4-1.6-1.5-.6-1.4.8-1.8-1.8.8-1.3-.6-1.5-1.6-.4v-2.5l1.6-.4.6-1.5L8.1 5l1.4-.8 1.5.6.4-1.6H14l.4 1.6 1.4.6 1.4-.8 1.8 1.8-.8 1.4.6 1.5 1.6.4v2.5l-1.6.4-.6 1.5Z"/></svg>',
   logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 5H5v14h5"/><path d="m14 8 4 4-4 4"/><path d="M18 12H9"/></svg>'
 };
 
@@ -43,5 +45,7 @@ export function renderShell(options) {
       navItem("settings","Settings","settings.html",icons.settings,active)+
     '</ul></div></nav>'+
     '<div class="sidebar-footer"><div class="user-card"><div class="avatar">'+esc(initials(name))+'</div><div class="user-info"><strong>'+esc(name)+'</strong><span>'+esc(email)+'</span></div><button id="logout-button" class="logout-button" type="button" title="Sign out" aria-label="Sign out">'+icons.logout+'</button></div></div></aside>'+
-    '<main class="main"><header class="topbar"><div class="page-context"><p>MasterMinds · FTC 30458</p><h1>'+esc(title)+'</h1></div><div class="topbar-actions"><a class="btn btn-outline btn-sm" href="./settings.html">Settings</a></div></header><div id="page-content" class="content"></div></main>';
+    '<main class="main"><header class="topbar"><div class="page-context"><p>MasterMinds · FTC 30458</p><h1>'+esc(title)+'</h1></div><div class="topbar-actions"><button id="theme-toggle" class="btn btn-outline btn-sm" type="button">Light mode</button><a class="btn btn-outline btn-sm" href="./settings.html">Settings</a></div></header><div id="page-content" class="content"></div></main>';
+
+  initializeThemeToggle();
 }
