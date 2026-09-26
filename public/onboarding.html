@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/app.css">
+  <link rel="stylesheet" href="./css/app.css?v=20260926-02">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <style>
     body{display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg-dark)}
@@ -77,6 +77,8 @@
   </main>
 
   <script type="module">
+    import { applyTheme } from "./js/theme.js?v=20260926-02";
+    applyTheme();
     import { requireAuth, saveUserProfile, sendResetPasswordEmail, attachLogout } from "./js/auth.js?v=20260918-03";
 
     requireAuth(async function(user, profile) {
