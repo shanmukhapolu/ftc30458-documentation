@@ -1,4 +1,4 @@
-import { db } from "./firebase.js?v=20260920-02";
+import { db } from "./firebase.js?v=20260926-02";
 import {
   collection,
   deleteDoc,
@@ -31,33 +31,42 @@ export async function deletePracticeCompletely(practiceId) {
   );
 
   const logsRef = collection(db, "practices", practiceId, "logs");
-  const logsSnapshot = await getDocs(logsRef);
-  const logRefs = logsSnapshot.docs.map(snapshot => snapshot.ref);
+  const attendanceRef = collection(db, "practices", practiceId, "attendance");
+  const [logsSnapshot, attendanceSnapshot] = await Promise.all([
+    getDocs(logsRef),
+    getDocs(attendanceRef)
+  ]);
+  const childRefs = [
+    ...logsSnapshot.docs.map(snapshot => snapshot.ref),
+    ...attendanceSnapshot.docs.map(snapshot => snapshot.ref)
+  ];
 
-  for (let index = 0; index < logRefs.length; index += 500) {
+  for (let index = 0; index < childRefs.length; index += 500) {
     const batch = writeBatch(db);
-    logRefs.slice(index, index + 500).forEach(logRef => batch.delete(logRef));
+    childRefs.slice(index, index + 500).forEach(childRef => batch.delete(childRef));
     await batch.commit();
   }
 
   await deleteDoc(practiceRef);
 
-  // Verify that the practice and its log subcollection are gone.
-  const [practiceCheck, logsCheck] = await Promise.all([
+  // Verify that the practice and both child collections are gone.
+  const [practiceCheck, logsCheck, attendanceCheck] = await Promise.all([
     getDoc(practiceRef),
-    getDocs(logsRef)
+    getDocs(logsRef),
+    getDocs(attendanceRef)
   ]);
 
   if (practiceCheck.exists()) {
     throw new Error("The practice document still exists after deletion.");
   }
 
-  if (!logsCheck.empty) {
-    throw new Error("Some member logs still exist after deletion.");
+  if (!logsCheck.empty || !attendanceCheck.empty) {
+    throw new Error("Some practice child records still exist after deletion.");
   }
 
   return {
     deletedPracticeId: practiceId,
-    deletedLogCount: logRefs.length
+    deletedLogCount: logsSnapshot.size,
+    deletedAttendanceCount: attendanceSnapshot.size
   };
 }
