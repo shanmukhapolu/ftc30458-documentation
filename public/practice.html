@@ -6,8 +6,7 @@
   <title>Practice | FTC 30458 Engineering Log</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/app.css?v=20260920-02">
+  <link rel="stylesheet" href="./css/app.css?v=20260926-02">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 </head>
 <body>
@@ -25,43 +24,51 @@
   </div>
 
   <script type="module">
-    import { requireAuth, attachLogout } from "./js/auth.js?v=20260920-02";
-    import { renderShell } from "./js/shell.js?v=20260920-02";
-    import { initializePracticePage } from "./js/practice.js?v=20260920-02";
+    import { requireAuth, attachLogout } from "./js/auth.js?v=20260926-02";
+    import { renderShell } from "./js/shell.js?v=20260926-02";
+    import { initializePracticePage } from "./js/practice.js?v=20260926-02";
 
     requireAuth(async function(user) {
-      renderShell({ active: "practices", title: "Practice", user: user });
+      renderShell({ active:"practices", title:"Practice", user:user });
 
-      document.getElementById("page-content").innerHTML =
-        '<section class="page-header">' +
-          '<a class="btn btn-outline btn-sm" href="./practices.html" style="margin-bottom:18px">← Practices</a>' +
-          '<div class="page-header-row">' +
-            '<div class="page-header-copy">' +
-              '<div class="eyebrow">Shared practice record</div>' +
-              '<h2 id="practice-title" class="page-title">Loading…</h2>' +
-              '<p id="practice-meta" class="page-subtitle">Loading the team record…</p>' +
-            '</div>' +
-            '<div class="page-actions"><button id="edit-my-log" class="btn btn-primary" type="button">Log / Edit My Work</button><button id="delete-practice" class="btn btn-danger" type="button">Delete Practice</button></div>' +
-          '</div>' +
-        '</section>' +
+      document.getElementById("page-content").innerHTML=
+        '<section class="page-header">'+
+          '<a class="btn btn-outline btn-sm" href="./practices.html" style="margin-bottom:18px">← Practices</a>'+
+          '<div class="page-header-row">'+
+            '<div class="page-header-copy">'+
+              '<div id="practice-eyebrow" class="eyebrow">Shared practice record</div>'+
+              '<h2 id="practice-title" class="page-title">Loading…</h2>'+
+              '<p id="practice-meta" class="page-subtitle">Loading the team record…</p>'+
+            '</div>'+
+            '<div class="page-actions"><button id="edit-practice" class="btn btn-outline" type="button">Edit Practice</button><button id="delete-practice" class="btn btn-danger" type="button">Delete Practice</button><button id="edit-my-log" class="btn btn-primary" type="button">Log / Edit My Work</button></div>'+
+          '</div>'+
+        '</section>'+
 
-        '<section class="stats-grid">' +
-          '<article class="stat-card"><div class="stat-label">Members documented</div><div id="member-progress" class="stat-value">—</div><div class="stat-meta">Live</div></article>' +
-          '<article class="stat-card"><div class="stat-label">Tasks</div><div id="task-count" class="stat-value">—</div><div class="stat-meta">Across all member logs</div></article>' +
-          '<article class="stat-card"><div class="stat-label">Categories</div><div id="category-count" class="stat-value">—</div><div class="stat-meta">Represented in this practice</div></article>' +
-          '<article class="stat-card"><div class="stat-label">Next steps</div><div id="next-step-count" class="stat-value">—</div><div class="stat-meta">Planned follow-up actions</div></article>' +
-        '</section>' +
+        '<section id="future-practice-banner" class="notice notice-warning future-practice-banner" style="display:none;margin-bottom:22px"></section>'+
+        '<section id="attendance-section" class="attendance-card card-shell" style="padding:20px;margin-bottom:25px"></section>'+
 
-        '<section class="section-head"><div><h2>Team work by category</h2><p>Every member&apos;s completed tasks are combined into one practice record.</p></div></section>' +
-        '<section id="team-tasks" class="category-board card-shell" style="padding:22px;margin-bottom:28px"></section>' +
+        '<section class="stats-grid">'+
+          '<article class="stat-card"><div class="stat-label">Members documented</div><div id="member-progress" class="stat-value">—</div><div class="stat-meta">Live</div></article>'+
+          '<article class="stat-card"><div class="stat-label">Tasks</div><div id="task-count" class="stat-value">—</div><div class="stat-meta">Across all member logs</div></article>'+
+          '<article class="stat-card"><div class="stat-label">Categories</div><div id="category-count" class="stat-value">—</div><div class="stat-meta">Represented in this practice</div></article>'+
+          '<article class="stat-card"><div class="stat-label">Next steps</div><div id="next-step-count" class="stat-value">—</div><div class="stat-meta">Planned follow-up actions</div></article>'+
+        '</section>'+
 
-        '<section class="section-head"><div><h2>Team next steps by category</h2><p>Future work stays bullet-based and is grouped with the same engineering categories.</p></div></section>' +
-        '<section id="team-next-steps" class="category-board card-shell" style="padding:22px;margin-bottom:28px"></section>' +
+        '<section class="practice-info-grid">'+
+          '<article class="card-shell practice-info-card"><div class="eyebrow">Schedule</div><h3 id="practice-schedule">—</h3><p id="practice-location">No location added.</p></article>'+
+          '<article class="card-shell practice-info-card"><div class="eyebrow">Goals / notes</div><p id="practice-description">No goals or notes were added.</p></article>'+
+        '</section>'+
 
-        '<section class="section-head"><div><h2>Member reflections</h2><p>What each person learned during the practice.</p></div></section>' +
-        '<section id="team-reflections" class="reflection-grid" style="margin-bottom:28px"></section>' +
+        '<section class="section-head"><div><h2>Team work by category</h2><p>Every member&apos;s completed tasks are combined into one practice record.</p></div></section>'+
+        '<section id="team-tasks" class="category-board card-shell" style="padding:22px;margin-bottom:28px"></section>'+
 
-        '<section class="section-head"><div><h2>Member logs</h2><p>Open a member&apos;s complete documentation. Only the author can edit it.</p></div></section>' +
+        '<section class="section-head"><div><h2>Team next steps by category</h2><p>Future work stays bullet-based and is grouped with the same engineering categories.</p></div></section>'+
+        '<section id="team-next-steps" class="category-board card-shell" style="padding:22px;margin-bottom:28px"></section>'+
+
+        '<section class="section-head"><div><h2>Member reflections</h2><p>What each person learned during the practice.</p></div></section>'+
+        '<section id="team-reflections" class="reflection-grid" style="margin-bottom:28px"></section>'+
+
+        '<section class="section-head"><div><h2>Member logs</h2><p>Open a member&apos;s complete documentation. Only the author can edit it.</p></div></section>'+
         '<section id="member-logs" class="member-grid"></section>';
 
       attachLogout("#logout-button");
