@@ -15,7 +15,7 @@
   <script type="module">
     import { requireAuth, attachLogout } from "./js/auth.js?v=20260918-03";
     import { renderShell } from "./js/shell.js?v=20260918-03";
-    import { initializeDashboard } from "./js/dashboard.js?v=20260918-03";
+    import { initializeDashboard } from "./js/dashboard.js?v=20261018-01";
 
     requireAuth(async function(user) {
       renderShell({ active: "dashboard", title: "Dashboard", user: user });
