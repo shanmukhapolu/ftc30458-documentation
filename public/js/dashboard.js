@@ -1,3 +1,4 @@
+import { db } from "./firebase.js?v=20260918-03";
 import { collection, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { showToast } from "./ui.js?v=20260926-02";
 import { initializePracticeEditor, openPracticeEditor, isFuturePractice, formatPracticeSchedule } from "./practice-editor.js?v=20260926-02";
