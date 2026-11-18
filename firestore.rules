@@ -19,20 +19,23 @@ service cloud.firestore {
          get(/databases/$(database)/documents/practices/$(practiceId)/attendance/$(uid)).data.status != "not_present");
     }
 
-    match /{document=**} {
-      allow read: if signedIn();
-    }
-
+    // Team profiles are readable by signed-in team members. A member can only
+    // create or update their own profile document.
     match /users/{uid} {
+      allow read: if signedIn();
       allow create, update: if isOwner(uid);
       allow delete: if false;
     }
 
+    // Practice records and their logs/attendance are the only other client
+    // collections used by the documentation app.
     match /practices/{practiceId} {
+      allow read: if signedIn();
       allow create, update: if signedIn();
       allow delete: if signedIn() && resource.data.deleting == true;
 
       match /logs/{uid} {
+        allow read: if signedIn();
         allow create, update: if isOwner(uid) && practiceLoggingOpen(practiceId, uid);
         allow delete: if isOwner(uid) ||
           (signedIn() &&
@@ -40,11 +43,24 @@ service cloud.firestore {
       }
 
       match /attendance/{uid} {
+        allow read: if signedIn();
         allow create, update: if isOwner(uid);
         allow delete: if isOwner(uid) ||
           (signedIn() &&
            get(/databases/$(database)/documents/practices/$(practiceId)).data.deleting == true);
       }
+    }
+
+    // No client access to central identity metadata, server sessions, or
+    // one-time OAuth authorization codes. The central portal uses Admin SDK.
+    match /identityProfiles/{document=**} {
+      allow read, write: if false;
+    }
+    match /identitySessions/{document=**} {
+      allow read, write: if false;
+    }
+    match /identityOAuthCodes/{document=**} {
+      allow read, write: if false;
     }
   }
 }
