@@ -74,7 +74,7 @@
   <script type="module">
     import { applyTheme } from "./js/theme.js?v=20260926-02";
     applyTheme();
-    import { requireAuth, saveUserProfile, attachLogout } from "./js/auth.js?v=20261118-01";
+    import { requireAuth, saveUserProfile, attachLogout } from "./js/auth.js?v=20261118-02";
 
     requireAuth(async function(user, profile) {
       document.getElementById("account-email").textContent = user.email || "";
