@@ -12,7 +12,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-const CENTRAL_AUTH_URL = "https://auth.ftc30458.com";
+const CENTRAL_AUTH_URL = "https://bookish-carnival-4rr7p57999rcjqpw-3000.app.github.dev";
 const OAUTH_CLIENT_ID = "ftc30458-documentation";
 const OAUTH_CALLBACK_URL = "https://log.ftc30458.com/auth-callback.html";
 const STORAGE_KEYS = {
