@@ -14,7 +14,7 @@
   <div id="app-shell"></div>
 
   <script type="module">
-    import { requireAuth, attachLogout, getUserProfile, saveUserProfile, sendResetPasswordEmail } from "./js/auth.js?v=20260918-03";
+    import { requireAuth, attachLogout, getUserProfile, saveUserProfile } from "./js/auth.js?v=20261118-01";
     import { renderShell } from "./js/shell.js?v=20260918-03";
     import { showToast } from "./js/ui.js?v=20260918-03";
 
@@ -66,9 +66,9 @@
             '</section>' +
 
             '<section class="card-shell" style="padding:24px;margin-bottom:18px">' +
-              '<div class="section-head"><div><h2>Password</h2><p>Send a secure password reset link to your account email.</p></div></div>' +
-              '<div class="notice notice-warning" style="margin-bottom:14px">A reset link will be sent to <strong id="password-email"></strong>. This does not sign you out.</div>' +
-              '<button id="reset-password" class="btn btn-outline" type="button">Send Password Reset Email</button>' +
+              '<div class="section-head"><div><h2>Sign-in</h2><p>Your credentials are managed by the centralized FTC 30458 identity portal.</p></div></div>' +
+              '<p class="form-hint">Use the central 30458 ID portal to manage your sign-in account.</p>' +
+              '<a class="btn btn-outline" href="https://auth.ftc30458.com/" target="_blank" rel="noopener">Open 30458 ID</a>' +
             '</section>' +
 
             '<section class="card-shell" style="padding:24px">' +
@@ -94,7 +94,6 @@
       const nameField = document.getElementById("settings-name");
       const roleField = document.getElementById("settings-role");
       const emailField = document.getElementById("settings-email");
-      const passwordEmail = document.getElementById("password-email");
       const profileStatus = document.getElementById("profile-status");
       const saveButton = document.getElementById("save-profile");
       const summaryName = document.getElementById("summary-name");
@@ -102,7 +101,6 @@
       const summaryEmail = document.getElementById("summary-email");
 
       emailField.value = user.email || "";
-      passwordEmail.textContent = user.email || "your account email";
       summaryEmail.textContent = user.email || "—";
 
       function syncSummary(){
@@ -150,22 +148,7 @@
         }
       });
 
-      document.getElementById("reset-password").addEventListener("click", async function(event) {
-        const button = event.currentTarget;
-        button.disabled = true;
-        button.textContent = "Sending…";
 
-        try {
-          await sendResetPasswordEmail(user);
-          showToast("Password reset email sent.", "success", 5000);
-        } catch (error) {
-          console.error("Unable to send password reset email:", error);
-          showToast(error.message || "Unable to send the reset email.", "error", 7000);
-        } finally {
-          button.disabled = false;
-          button.textContent = "Send Password Reset Email";
-        }
-      });
     });
   </script>
 </body>
