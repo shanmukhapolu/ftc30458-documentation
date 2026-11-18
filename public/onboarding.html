@@ -60,11 +60,6 @@
 
         <button id="save-profile" class="btn btn-primary" style="width:100%" type="submit">Save Profile</button>
 
-        <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--border)">
-          <div class="form-label">Password</div>
-          <p class="form-hint">Need to change your password? Firebase can email you a password reset link.</p>
-          <button id="reset-password" class="btn btn-outline btn-sm" type="button" style="margin-top:10px">Send Password Reset Email</button>
-        </div>
       </form>
 
       <div id="setup-message" class="notice" style="display:none;margin-top:16px"></div>
@@ -79,7 +74,7 @@
   <script type="module">
     import { applyTheme } from "./js/theme.js?v=20260926-02";
     applyTheme();
-    import { requireAuth, saveUserProfile, sendResetPasswordEmail, attachLogout } from "./js/auth.js?v=20260918-03";
+    import { requireAuth, saveUserProfile, attachLogout } from "./js/auth.js?v=20261118-01";
 
     requireAuth(async function(user, profile) {
       document.getElementById("account-email").textContent = user.email || "";
@@ -113,21 +108,7 @@
         }
       });
 
-      document.getElementById("reset-password").addEventListener("click", async function() {
-        try {
-          await sendResetPasswordEmail(user);
-          const message = document.getElementById("setup-message");
-          message.textContent = "Password reset email sent to " + user.email + ".";
-          message.className = "notice notice-success";
-          message.style.display = "block";
-        } catch (error) {
-          console.error(error);
-          const message = document.getElementById("setup-message");
-          message.textContent = error.message || "Unable to send the reset email.";
-          message.className = "notice notice-danger";
-          message.style.display = "block";
-        }
-      });
+
 
       attachLogout("#sign-out");
     }, { allowIncomplete: true });
