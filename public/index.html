@@ -21,8 +21,6 @@
     .login-card h2{font-size:1.15rem}
     .login-card .sub{margin-top:5px;margin-bottom:22px;font-size:.72rem;color:var(--text-muted);line-height:1.55}
     .login-footer{margin-top:17px;text-align:center;color:var(--text-muted);font-size:.63rem}
-    .error-message{display:none;margin-top:12px;padding:11px 12px;border-radius:10px;border:1px solid rgba(255,107,107,.14);background:var(--danger-soft);color:var(--danger);font-size:.69rem;line-height:1.5}
-    .error-message.visible{display:block}
     .submit-button{width:100%;margin-top:4px}
   </style>
 </head>
@@ -34,71 +32,30 @@
       <h1>Engineering Log</h1>
       <p>Private team documentation for MasterMinds.</p>
     </section>
-
     <section class="login-card">
       <h2>Sign in</h2>
-      <p class="sub">Use your authorized team account. There is no public account creation.</p>
-
-      <form id="login-form">
-        <div class="form-group">
-          <label class="form-label" for="email">Email</label>
-          <input class="form-input" id="email" type="email" autocomplete="email" placeholder="you@example.com" required>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="password">Password</label>
-          <input class="form-input" id="password" type="password" autocomplete="current-password" placeholder="Your password" required>
-        </div>
-
-        <button id="login-button" class="btn btn-primary submit-button" type="submit">Sign In</button>
-        <div id="error-message" class="error-message" role="alert"></div>
-      </form>
+      <p class="sub">Continue with your centralized FTC 30458 account. You will be redirected to the team sign-in portal.</p>
+      <button id="login-button" class="btn btn-primary submit-button" type="button">Continue to 30458 ID</button>
+      <div id="error-message" class="notice notice-danger" role="alert" hidden style="margin-top:12px"></div>
     </section>
-
     <div class="login-footer">Team members only</div>
   </main>
-
   <script type="module">
     import { applyTheme } from "./js/theme.js?v=20260926-02";
+    import { redirectIfAuthenticated, beginCentralSignIn } from "./js/auth.js?v=20261118-01";
     applyTheme();
-    import { auth } from "./js/firebase.js";
-    import { onAuthStateChanged, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-
-    const form = document.getElementById("login-form");
+    redirectIfAuthenticated("./dashboard.html");
     const button = document.getElementById("login-button");
-    const error = document.getElementById("error-message");
-
-    onAuthStateChanged(auth, function(user) {
-      if (user) window.location.replace("./dashboard.html");
-    });
-
-    form.addEventListener("submit", async function(event) {
-      event.preventDefault();
-      error.classList.remove("visible");
+    button.addEventListener("click", async () => {
       button.disabled = true;
-      button.textContent = "Signing in…";
-
+      button.textContent = "Redirecting…";
       try {
-        await signInWithEmailAndPassword(
-          auth,
-          document.getElementById("email").value.trim(),
-          document.getElementById("password").value
-        );
-        window.location.replace("./dashboard.html");
-      } catch (err) {
-        console.error(err);
-        let message = "Unable to sign in. Check your credentials and try again.";
-        if (err.code === "auth/api-key-not-valid") {
-          message = "Firebase rejected the web API key. Update the Firebase web app config before testing login.";
-        } else if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
-          message = "Incorrect email or password.";
-        } else if (err.code === "auth/too-many-requests") {
-          message = "Too many unsuccessful attempts. Try again later.";
-        }
-        error.textContent = message;
-        error.classList.add("visible");
+        await beginCentralSignIn("/dashboard.html");
+      } catch (error) {
+        document.getElementById("error-message").textContent = error.message || "Unable to start sign-in.";
+        document.getElementById("error-message").hidden = false;
         button.disabled = false;
-        button.textContent = "Sign In";
+        button.textContent = "Continue to 30458 ID";
       }
     });
   </script>
