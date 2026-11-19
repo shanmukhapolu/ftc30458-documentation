@@ -1,5 +1,5 @@
 import { db } from "./firebase.js?v=20261118-01";
-import { collection, doc, getDoc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { collection, doc, getDoc, getDocs, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { isFuturePractice, formatPracticeSchedule, initializePracticeEditor, openPracticeEditor } from "./practice-editor.js?v=20260926-02";
 import { deletePracticeCompletely } from "./practice-delete.js?v=20260926-02";
 import { showToast } from "./ui.js?v=20260926-02";
@@ -37,7 +37,7 @@ function progress() {
   const score = filled + (workCount ? 1 : 0);
   return {filled,workCount,total,score,complete:score===total};
 }
-async function syncMeta() { const p=progress(); await setDoc(doc(db,"practices",practice.id,"documentMeta","main"),{complete:p.complete,completionScore:p.score,totalSections:p.total,lastContributionAt:serverTimestamp(),lastContributorName:displayName(),updatedAt:serverTimestamp()},{merge:true}); }
+async function syncMeta() { const [sectionSnap,itemSnap]=await Promise.all([getDocs(collection(db,"practices",practice.id,"documentSections")),getDocs(collection(db,"practices",practice.id,"documentItems"))]); const fresh={}; sectionSnap.docs.forEach(d=>fresh[d.id]=d.data()); const workCount=itemSnap.docs.filter(d=>d.data().type==="work").length; const required=SECTION_DEFS.filter(s=>s.required); const filled=required.filter(s=>String(fresh[s.id]?.content||"").trim()).length; const total=required.length+1; const score=filled+(workCount?1:0); await setDoc(doc(db,"practices",practice.id,"documentMeta","main"),{complete:score===total,completionScore:score,totalSections:total,lastContributionAt:serverTimestamp(),lastContributorName:displayName(),updatedAt:serverTimestamp()},{merge:true}); }
 function renderHeader() {
   $("doc-practice-title").textContent = practice.title || "Untitled practice";
   $("doc-practice-meta").textContent = formatPracticeSchedule(practice) + (practice.location ? " · "+practice.location : "");

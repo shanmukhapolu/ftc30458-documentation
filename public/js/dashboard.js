@@ -56,7 +56,7 @@ function render(){
 
   statPractices.textContent=practices.length;
   statMyLogs.textContent=myLogCount;
-  statToday.textContent=activeToday?(isFuturePractice(activeToday)?"Upcoming":"Yes"):"—";
+  statToday.textContent=activeToday?(isFuturePractice(activeToday)?"Upcoming":myLogFor(activeToday.id)?.complete?"Complete":"In progress"):"—";
   statOverdue.textContent=overdue.length;
 
   create.classList.remove("hidden");
@@ -68,9 +68,6 @@ function render(){
     if(activeToday&&isFuturePractice(activeToday)){
       todayStatus.textContent="Upcoming";
       todayNote.textContent=formatPracticeSchedule(activeToday);
-    }else if(activeToday&&myAttendanceFor(activeToday.id)?.status==="not_present"){
-      todayStatus.textContent="Not present";
-      todayNote.textContent="No log required.";
     }else if(mine?.complete){
       todayStatus.textContent="Complete";
       todayNote.textContent="The shared practice document is complete.";
@@ -88,12 +85,12 @@ function render(){
     ? overdue.slice(0,10).map(p=>{
         return '<div class="overdue-item"><div><strong>'+esc(p.title||formatDateKey(p.dateKey||p.id))+'</strong><span>'+esc(formatPracticeSchedule(p))+'</span></div><a class="btn btn-outline btn-sm" href="./practice.html?id='+encodeURIComponent(p.id)+'">Complete document</a></div>';
       }).join("")
-    : '<div class="notice notice-success">You are caught up. No past practice logs are missing.</div>';
+    : '<div class="notice notice-success">All past practice documents are complete.</div>';
 
   recent.innerHTML=practices.length
     ? practices.slice(0,8).map(p=>{
         const mine=Boolean(myLogFor(p.id)?.complete);
-        const absent=myAttendanceFor(p.id)?.status==="not_present";
+        
         const future=isFuturePractice(p);
         const status=future?"Upcoming":mine?"Complete":"In progress";
         const chip=future?"chip-primary":mine?"chip-success":"chip-warning";

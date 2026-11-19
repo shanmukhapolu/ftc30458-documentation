@@ -32,7 +32,7 @@ service cloud.firestore {
       }
       match /documentItems/{itemId} {
         allow create, update: if signedIn() && practiceExists(practiceId) && practiceStarted(practiceId);
-        allow delete: if signedIn() && practiceStarted(practiceId);
+        allow delete: if signedIn() && (practiceStarted(practiceId) || get(/databases/$(database)/documents/practices/$(practiceId)).data.deleting == true);
       }
       match /documentMeta/{metaId} {
         allow create, update: if signedIn() && practiceExists(practiceId) && practiceStarted(practiceId);
