@@ -25,9 +25,9 @@ const dateText = value => {
   const date = value?.toDate ? value.toDate() : new Date(value);
   return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"}).format(date);
 };
-function addHistory(action, detail, sectionId="") {
+function addHistory(action, detail, sectionId="", revision={}) {
   return addDoc(collection(db,"practices",practice.id,"documentHistory"),{
-    action, detail, sectionId, userId:user.uid, memberName:displayName(), createdAt:serverTimestamp()
+    action, detail, sectionId, ...revision, userId:user.uid, memberName:displayName(), createdAt:serverTimestamp()
   });
 }
 function progress() {
@@ -74,7 +74,7 @@ async function saveSection(id,button) {
     await setDoc(doc(db,"practices",practice.id,"documentSections",id),{
       content, updatedAt:serverTimestamp(), updatedBy:user.uid, updatedByName:displayName()
     },{merge:true});
-    await addHistory("Updated section",SECTION_DEFS.find(s=>s.id===id)?.title||id,id);
+    await addHistory("Updated section",SECTION_DEFS.find(s=>s.id===id)?.title||id,id,{before:String(sections[id]?.content||""),after:content});
     await syncMeta();
     showToast("Section saved.","success");
   } catch(error) {
@@ -128,7 +128,7 @@ async function editItem(id) {
   if(!text){showToast("An item cannot be empty. Delete it if it is no longer needed.","warning");return;}
   try {
     await updateDoc(doc(db,"practices",practice.id,"documentItems",id),{text,updatedAt:serverTimestamp(),updatedBy:user.uid,updatedByName:displayName()});
-    await addHistory("Edited item",text);
+    await addHistory("Edited item",text,"",{before:item.text,after:text});
     await syncMeta();
   } catch(error){showToast("Could not update item: "+error.message,"error",7000);}
 }
@@ -191,7 +191,7 @@ async function toggleReview() {
 }
 function renderHistory() {
   const recent=history.slice(0,12);
-  $("document-history").innerHTML=recent.length?recent.map(entry=>'<div class="history-row"><div><strong>'+esc(entry.action||"Updated document")+'</strong><span>'+esc(entry.detail||"")+'</span></div><div class="history-meta">'+esc(entry.memberName||"Team member")+'<br>'+esc(dateText(entry.createdAt))+'</div></div>').join(""):'<div class="empty-state compact-empty"><p>Changes will appear here as team members contribute.</p></div>';
+  $("document-history").innerHTML=recent.length?recent.map(entry=>'<div class="history-row"><div><strong>'+esc(entry.action||"Updated document")+'</strong><span>'+esc(entry.detail||"")+(Object.prototype.hasOwnProperty.call(entry,"after")?'</span><details class="history-detail"><summary>View revision</summary><div><strong>Previous</strong><p>'+esc(entry.before||"No earlier content") + '</p><strong>Saved version</strong><p>'+esc(entry.after||"") + '</p></div></details>':'</span>')+'</div><div class="history-meta">'+esc(entry.memberName||"Team member")+'<br>'+esc(dateText(entry.createdAt))+'</div></div>').join(""):'<div class="empty-state compact-empty"><p>Changes will appear here as team members contribute.</p></div>';
 }
 function updateReadOnly() {
   const locked=isFuturePractice(practice);
