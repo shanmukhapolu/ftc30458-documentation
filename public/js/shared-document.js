@@ -51,14 +51,16 @@ function renderHeader() {
   $("doc-review-status").textContent=sections._meta?.reviewed ? "Reviewed by "+(sections._meta.reviewedByName||"team member") : "Not yet reviewed";
   $("doc-review-button").textContent=sections._meta?.reviewed ? "Reopen for review" : "Mark reviewed";
   $("doc-review-button").classList.toggle("btn-primary",!sections._meta?.reviewed);
+  $("import-legacy-button").hidden=Boolean(sections._meta?.legacyImported);
 }
 function renderSections() {
   $("document-sections").innerHTML=SECTION_DEFS.map(section=>{
     const data=sections[section.id]||{};
+    const disabled=isFuturePractice(practice)?" disabled":"";
     return '<section class="card-shell shared-section" data-section="'+section.id+'">'+
       '<div class="shared-section-head"><div><h3>'+esc(section.title)+'</h3><p>'+esc(section.hint)+'</p></div><span class="chip '+(String(data.content||"").trim()?"chip-success":"chip-neutral")+'">'+(String(data.content||"").trim()?"Saved":"Needs input")+'</span></div>'+
-      '<textarea class="form-textarea shared-section-input" rows="'+(section.id==="evidence"?3:4)+'" data-content="'+section.id+'" placeholder="Add to the team record…">'+esc(data.content||"")+'</textarea>'+
-      '<div class="shared-section-footer"><span class="shared-updated">'+(data.updatedAt?"Last updated "+esc(dateText(data.updatedAt))+(data.updatedByName?" by "+esc(data.updatedByName):""):"Not yet documented")+'</span><button class="btn btn-outline btn-sm" type="button" data-save-section="'+section.id+'">Save section</button></div>'+
+      '<textarea class="form-textarea shared-section-input" rows="'+(section.id==="evidence"?3:4)+'" data-content="'+section.id+'" placeholder="Add to the team record…"'+disabled+'>'+esc(data.content||"")+'</textarea>'+
+      '<div class="shared-section-footer"><span class="shared-updated">'+(data.updatedAt?"Last updated "+esc(dateText(data.updatedAt))+(data.updatedByName?" by "+esc(data.updatedByName):""):"Not yet documented")+'</span><button class="btn btn-outline btn-sm" type="button" data-save-section="'+section.id+'"'+disabled+'>Save section</button></div>'+
     '</section>';
   }).join("");
   $("document-sections").querySelectorAll("[data-save-section]").forEach(button=>button.addEventListener("click",()=>saveSection(button.dataset.saveSection,button)));
@@ -96,7 +98,8 @@ function renderItems() {
 }
 function renderItem(item,type) {
   const done=item.status==="complete";
-  return '<article class="shared-item '+(done?"is-complete":"")+'"><div class="shared-item-main"><div class="shared-item-title">'+esc(item.text)+'</div><div class="shared-item-meta">'+esc(item.category||"General")+' · Added by '+esc(item.createdByName||"Team member")+(item.updatedByName&&item.updatedByName!==item.createdByName?" · Updated by "+esc(item.updatedByName):"")+'</div></div><div class="shared-item-actions">'+(type==="next"?'<button class="btn btn-outline btn-xs" type="button" data-item-toggle="'+item.id+'">'+(done?"Reopen":"Complete")+'</button>':"")+'<button class="btn btn-outline btn-xs" type="button" data-item-edit="'+item.id+'">Edit</button><button class="btn btn-ghost btn-xs" type="button" data-item-delete="'+item.id+'" aria-label="Delete item">×</button></div></article>';
+  const disabled=isFuturePractice(practice)?" disabled":"";
+  return '<article class="shared-item '+(done?"is-complete":"")+'"><div class="shared-item-main"><div class="shared-item-title">'+esc(item.text)+'</div><div class="shared-item-meta">'+esc(item.category||"General")+' · Added by '+esc(item.createdByName||"Team member")+(item.updatedByName&&item.updatedByName!==item.createdByName?" · Updated by "+esc(item.updatedByName):"")+'</div></div><div class="shared-item-actions">'+(type==="next"?'<button class="btn btn-outline btn-xs" type="button" data-item-toggle="'+item.id+'"'+disabled+'>'+(done?"Reopen":"Complete")+'</button>':"")+'<button class="btn btn-outline btn-xs" type="button" data-item-edit="'+item.id+'"'+disabled+'>Edit</button><button class="btn btn-outline btn-xs" type="button" data-item-delete="'+item.id+'" aria-label="Delete item"'+disabled+'>×</button></div></article>';
 }
 async function addItem(type) {
   if(!canEdit()) return;
@@ -148,6 +151,32 @@ async function toggleItem(id) {
     await syncMeta();
   } catch(error){showToast("Could not update next step: "+error.message,"error",7000);}
 }
+async function importLegacyLogs() {
+ if(!canEdit())return;
+ const button=$("import-legacy-button");button.disabled=true;button.textContent="Importing…";
+ try {
+  const snapshot=await getDocs(collection(db,"practices",practice.id,"logs"));
+  if(snapshot.empty){showToast("No older member logs were found for this practice.","info");return;}
+  let reflections=[];
+  for(const entry of snapshot.docs){
+   const log=entry.data(),member=String(log.memberName||log.memberEmail||"Previous team member"),uid=String(log.userId||entry.id);
+   let tasks=Array.isArray(log.tasks)?log.tasks.map(t=>({text:String(t?.text||"").trim(),category:String(t?.category||"General")})).filter(t=>t.text):[];
+   if(!tasks.length&&Array.isArray(log.selectedPresets))tasks=log.selectedPresets.map((text,i)=>({text:String(text||"").trim(),category:(log.workAreas||[])[i]||(log.workAreas||[])[0]||"General"})).filter(t=>t.text);
+   if(!tasks.length&&log.majorAccomplishment)tasks=[{text:String(log.majorAccomplishment).trim(),category:(log.workAreas||[])[0]||"General"}];
+   let next=Array.isArray(log.nextSteps)?log.nextSteps.map(s=>({text:String(s?.text||"").trim(),category:String(s?.category||"General")})).filter(s=>s.text):[];
+   if(!next.length&&log.nextStep)next=[{text:String(log.nextStep).trim(),category:(log.workAreas||[])[0]||"General"}];
+   for(let i=0;i<tasks.length;i++)await setDoc(doc(db,"practices",practice.id,"documentItems","legacy_"+entry.id+"_work_"+i),{type:"work",text:tasks[i].text,category:tasks[i].category,createdBy:uid,createdByName:member,updatedBy:uid,updatedByName:member,status:"open",legacyImport:true,createdAt:log.createdAt||serverTimestamp(),updatedAt:serverTimestamp()},{merge:true});
+   for(let i=0;i<next.length;i++)await setDoc(doc(db,"practices",practice.id,"documentItems","legacy_"+entry.id+"_next_"+i),{type:"next",text:next[i].text,category:next[i].category,createdBy:uid,createdByName:member,updatedBy:uid,updatedByName:member,status:"open",legacyImport:true,createdAt:log.createdAt||serverTimestamp(),updatedAt:serverTimestamp()},{merge:true});
+   const learned=String(log.learned||log.lesson||"").trim();if(learned)reflections.push(member+": "+learned);
+  }
+  if(reflections.length){const sectionRef=doc(db,"practices",practice.id,"documentSections","lessons");const current=await getDoc(sectionRef);const existing=String(current.data()?.content||"").trim();const merged=[existing,...reflections.map(t=>"• "+t)].filter(Boolean).join("\n\n");await setDoc(sectionRef,{content:merged,updatedAt:serverTimestamp(),updatedBy:user.uid,updatedByName:displayName()},{merge:true});}
+  await setDoc(doc(db,"practices",practice.id,"documentMeta","main"),{legacyImported:true,legacyImportedAt:serverTimestamp(),legacyImportedBy:displayName()},{merge:true});
+  await addHistory("Imported earlier member logs",snapshot.size+" legacy entries combined into the shared document.");
+  await syncMeta();showToast("Imported "+snapshot.size+" older member logs into the shared document. Original records were preserved.","success",7000);
+ } catch(error){console.error("Legacy log import failed:",error);showToast("Import failed: "+error.message,"error",8000);}
+ finally{button.disabled=false;button.textContent="Import older logs";}
+}
+
 async function toggleReview() {
   if(!canEdit())return;
   const reviewed=!sections._meta?.reviewed;
@@ -213,6 +242,7 @@ export async function initializeSharedDocument(authUser) {
     $("work-add").addEventListener("click",()=>addItem("work"));
     $("next-add").addEventListener("click",()=>addItem("next"));
     $("doc-review-button").addEventListener("click",toggleReview);
+    $("import-legacy-button").addEventListener("click",importLegacyLogs);
     $("work-text").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addItem("work");}});
     $("next-text").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addItem("next");}});
     subscribe();

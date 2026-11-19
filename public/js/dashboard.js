@@ -79,7 +79,7 @@ function render(){
 
   latestPractice.textContent=practices.length?(practices[0].title||formatDateKey(practices[0].dateKey||practices[0].id)):"—";
   latestPracticeNote.textContent=practices.length?formatPracticeSchedule(practices[0]):"No practice yet";
-  teamCompletion.textContent=(latestPracticeLogs.length?latestPracticeLogs.length+" updates":"—");
+  teamCompletion.textContent=practices.length?(myLogFor(practices[0].id)?.complete?"Complete":(myLogFor(practices[0].id)?.completionScore||0)+"/"+(myLogFor(practices[0].id)?.totalSections||7)):"—";
 
   overdueList.innerHTML=overdue.length
     ? overdue.slice(0,10).map(p=>{
