@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signing in | FTC 30458</title>
+  <link rel="stylesheet" href="./css/app.css?v=20260926-02">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <style>
+    body{min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--bg-dark)}
+    .callback-card{width:min(100%,440px);padding:30px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);text-align:center}
+    .callback-card p{margin-top:10px;color:var(--text-muted);font-size:.8rem}
+    .callback-error{margin-top:18px;text-align:left}
+  </style>
+</head>
+<body>
+  <main class="callback-card">
+    <div class="eyebrow">FTC 30458 · Engineering Log</div>
+    <h1 style="margin-top:10px">Completing sign-in</h1>
+    <p id="callback-status">Verifying your central account and connecting to the documentation workspace…</p>
+    <div id="callback-error" class="notice notice-danger callback-error" role="alert" hidden></div>
+    <a id="retry-link" class="btn btn-primary" href="./index.html" hidden style="margin-top:16px">Return to sign in</a>
+  </main>
+  <script type="module">
+    import { completeCentralSignIn } from "./js/auth.js?v=20261118-02";
+    try {
+      await completeCentralSignIn();
+    } catch (error) {
+      console.error("Central sign-in callback failed:", error);
+      document.getElementById("callback-status").textContent = "Sign-in could not be completed.";
+      document.getElementById("callback-error").textContent = error.message || "Please return to the documentation site and try again.";
+      document.getElementById("callback-error").hidden = false;
+      document.getElementById("retry-link").hidden = false;
+    }
+  </script>
+</body>
+</html>
