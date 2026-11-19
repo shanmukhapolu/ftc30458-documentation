@@ -196,7 +196,7 @@ function renderHistory() {
 function updateReadOnly() {
   const locked=isFuturePractice(practice);
   $("future-document-banner").hidden=!locked;
-  document.querySelectorAll("#document-sections textarea,#document-sections button,#work-form input,#work-form select,#work-form button,#next-form input,#next-form select,#next-form button,#doc-review-button").forEach(el=>el.disabled=locked);
+  document.querySelectorAll("#document-sections textarea,#document-sections button,#work-form input,#work-form select,#work-form button,#next-form input,#next-form select,#next-form button,#doc-review-button,#import-legacy-button").forEach(el=>el.disabled=locked);
   if(locked)$("future-document-banner").textContent="This practice has not started. The shared document is available to view, but editing opens at the scheduled start time.";
 }
 async function saveAttendance(status){try{await setDoc(doc(db,"practices",practice.id,"attendance",user.uid),{userId:user.uid,memberName:displayName(),status,updatedAt:serverTimestamp()},{merge:true});showToast("Attendance updated.","success");}catch(error){showToast("Attendance could not be updated: "+error.message,"error",7000);}}
@@ -226,10 +226,10 @@ function subscribe() {
 export async function initializeSharedDocument(authUser) {
   user=authUser;
   const practiceId=new URLSearchParams(location.search).get("id")||new URLSearchParams(location.search).get("practiceId");
-  if(!practiceId){$("document-root").innerHTML='<div class="notice notice-danger">A practice ID is required. Return to Practices and open a practice.</div>';return;}
+  if(!practiceId){$("document-root").hidden=false;$("document-root").innerHTML='<div class="notice notice-danger">A practice ID is required. Return to Practices and open a practice.</div>';return;}
   try {
     const snap=await getDoc(doc(db,"practices",practiceId));
-    if(!snap.exists()||snap.data().deleting){$("document-root").innerHTML='<div class="notice notice-danger">This practice could not be found.</div>';return;}
+    if(!snap.exists()||snap.data().deleting){$("document-root").hidden=false;$("document-root").innerHTML='<div class="notice notice-danger">This practice could not be found.</div>';return;}
     practice={id:snap.id,...snap.data()};
     $("doc-practice-title").textContent=practice.title||"Untitled practice";
     $("doc-practice-meta").textContent=formatPracticeSchedule(practice);
@@ -250,6 +250,6 @@ export async function initializeSharedDocument(authUser) {
     $("document-root").hidden=false;
   } catch(error) {
     console.error("Shared document initialization failed:",error);
-    $("document-root").innerHTML='<div class="notice notice-danger">The shared practice document could not be opened: '+esc(error.message)+'</div>';
+    $("document-root").hidden=false;$("document-root").innerHTML='<div class="notice notice-danger">The shared practice document could not be opened: '+esc(error.message)+'</div>';
   }
 }
