@@ -662,15 +662,15 @@ svg{display:block}
 html[data-theme="light"]{
   --bg-dark:#f5f7fa;
   --bg-darker:#ffffff;
-  --surface:rgba(17,24,39,.035);
-  --surface-hover:rgba(17,24,39,.065);
+  --surface:#ffffff;
+  --surface-hover:#f3f8ff;
   --text-primary:#172033;
   --text-secondary:#536071;
   --text-muted:#737d8c;
-  --border:rgba(23,32,51,.11);
-  --border-strong:rgba(23,32,51,.18);
-  --shadow-minimal:0 8px 30px rgba(31,41,55,.08);
-  --shadow-hover:0 18px 42px rgba(31,41,55,.13);
+  --border:rgba(58,112,171,.13);
+  --border-strong:rgba(58,112,171,.23);
+  --shadow-minimal:0 5px 22px rgba(31,65,100,.055);
+  --shadow-hover:0 14px 34px rgba(31,65,100,.11);
 }
 html[data-theme="light"] body{background:var(--bg-dark);color:var(--text-primary)}
 html[data-theme="light"] .sidebar{background:var(--bg-darker)}
@@ -694,7 +694,23 @@ html[data-theme="light"] .summary-stat,
 html[data-theme="light"] .log-view-block,
 html[data-theme="light"] .accomplishment-row{border-color:rgba(23,32,51,.08)}
 html[data-theme="light"] .work-area-option label,
-html[data-theme="light"] .preset-button{background:rgba(17,24,39,.018)}
+html[data-theme="light"] .preset-button{background:#ffffff}
+html[data-theme="light"] .work-area-option label:hover,
+html[data-theme="light"] .preset-button:hover{background:#f3f8ff}
+html[data-theme="light"] .quick-card,
+html[data-theme="light"] .summary-card,
+html[data-theme="light"] .reflection-card,
+html[data-theme="light"] .personal-log-card,
+html[data-theme="light"] .practice-info-card{background:#ffffff}
+html[data-theme="light"] .glass,
+html[data-theme="light"] .card-shell,
+html[data-theme="light"] .stat-card,
+html[data-theme="light"] .practice-row,
+html[data-theme="light"] .member-card{background:#ffffff}
+html[data-theme="light"] .glass-hover:hover,
+html[data-theme="light"] .stat-card:hover,
+html[data-theme="light"] .practice-row:hover,
+html[data-theme="light"] .member-card:hover{background:#f3f8ff}
 html[data-theme="light"] .spinner{border-color:rgba(17,24,39,.12)}
 
 @media(max-width:700px){
