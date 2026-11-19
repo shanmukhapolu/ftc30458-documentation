@@ -1,79 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Practice | FTC 30458 Engineering Log</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="./css/app.css?v=20260926-02">
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shared Practice Document | FTC 30458 Engineering Log</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="./css/app.css?v=20261118-01"><link rel="icon" href="./favicon.svg" type="image/svg+xml">
 </head>
 <body>
-  <div id="app-shell"></div>
-
-  <div id="log-modal" class="modal-backdrop">
-    <div class="modal">
-      <div class="modal-header">
-        <div><div class="eyebrow">Practice log</div><h2 id="modal-title">Member log</h2></div>
-        <button id="close-modal" class="modal-close" type="button" aria-label="Close">×</button>
-      </div>
-      <div id="modal-body" class="modal-body"></div>
-      <div id="modal-footer" class="modal-footer"></div>
-    </div>
-  </div>
-
-  <script type="module">
-    import { requireAuth, attachLogout } from "./js/auth.js?v=20260926-02";
-    import { renderShell } from "./js/shell.js?v=20260926-02";
-    import { initializePracticePage } from "./js/practice.js?v=20260926-02";
-
-    requireAuth(async function(user) {
-      renderShell({ active:"practices", title:"Practice", user:user });
-
-      document.getElementById("page-content").innerHTML=
-        '<section class="page-header">'+
-          '<a class="btn btn-outline btn-sm" href="./practices.html" style="margin-bottom:18px">← Practices</a>'+
-          '<div class="page-header-row">'+
-            '<div class="page-header-copy">'+
-              '<div id="practice-eyebrow" class="eyebrow">Shared practice record</div>'+
-              '<h2 id="practice-title" class="page-title">Loading…</h2>'+
-              '<p id="practice-meta" class="page-subtitle">Loading the team record…</p>'+
-            '</div>'+
-            '<div class="page-actions"><button id="edit-practice" class="btn btn-outline" type="button">Edit Practice</button><button id="delete-practice" class="btn btn-danger" type="button">Delete Practice</button><button id="edit-my-log" class="btn btn-primary" type="button">Log / Edit My Work</button></div>'+
-          '</div>'+
-        '</section>'+
-
-        '<section id="future-practice-banner" class="notice notice-warning future-practice-banner" style="display:none;margin-bottom:22px"></section>'+
-        '<section id="attendance-section" class="attendance-card card-shell" style="padding:20px;margin-bottom:25px"></section>'+
-
-        '<section class="stats-grid">'+
-          '<article class="stat-card"><div class="stat-label">Members documented</div><div id="member-progress" class="stat-value">—</div><div class="stat-meta">Live</div></article>'+
-          '<article class="stat-card"><div class="stat-label">Tasks</div><div id="task-count" class="stat-value">—</div><div class="stat-meta">Across all member logs</div></article>'+
-          '<article class="stat-card"><div class="stat-label">Categories</div><div id="category-count" class="stat-value">—</div><div class="stat-meta">Represented in this practice</div></article>'+
-          '<article class="stat-card"><div class="stat-label">Next steps</div><div id="next-step-count" class="stat-value">—</div><div class="stat-meta">Planned follow-up actions</div></article>'+
-        '</section>'+
-
-        '<section class="practice-info-grid">'+
-          '<article class="card-shell practice-info-card"><div class="eyebrow">Schedule</div><h3 id="practice-schedule">—</h3><p id="practice-location">No location added.</p></article>'+
-          '<article class="card-shell practice-info-card"><div class="eyebrow">Goals / notes</div><p id="practice-description">No goals or notes were added.</p></article>'+
-        '</section>'+
-
-        '<section class="section-head"><div><h2>Team work by category</h2><p>Every member&apos;s completed tasks are combined into one practice record.</p></div></section>'+
-        '<section id="team-tasks" class="category-board card-shell" style="padding:22px;margin-bottom:28px"></section>'+
-
-        '<section class="section-head"><div><h2>Team next steps by category</h2><p>Future work stays bullet-based and is grouped with the same engineering categories.</p></div></section>'+
-        '<section id="team-next-steps" class="category-board card-shell" style="padding:22px;margin-bottom:28px"></section>'+
-
-        '<section class="section-head"><div><h2>Member reflections</h2><p>What each person learned during the practice.</p></div></section>'+
-        '<section id="team-reflections" class="reflection-grid" style="margin-bottom:28px"></section>'+
-
-        '<section class="section-head"><div><h2>Member logs</h2><p>Open a member&apos;s complete documentation. Only the author can edit it.</p></div></section>'+
-        '<section id="member-logs" class="member-grid"></section>';
-
-      attachLogout("#logout-button");
-      initializePracticePage(user);
-    });
-  </script>
-</body>
-</html>
+<div id="app-shell"></div>
+<script type="module">
+import {requireAuth,attachLogout} from "./js/auth.js?v=20260926-02";
+import {renderShell} from "./js/shell.js?v=20261118-01";
+import {initializeSharedDocument} from "./js/shared-document.js?v=20261118-01";
+requireAuth(async user=>{
+  renderShell({active:"practices",title:"Practice document",user});
+  document.getElementById("page-content").innerHTML=`
+  <div id="document-root" hidden>
+    <section class="page-header">
+      <a class="btn btn-outline btn-sm" href="./practices.html" style="margin-bottom:18px">← Practices</a>
+      <div class="page-header-row"><div class="page-header-copy"><div class="eyebrow">Shared team record</div><h2 id="doc-practice-title" class="page-title">Loading practice…</h2><p id="doc-practice-meta" class="page-subtitle">Loading schedule…</p></div><div class="page-actions"><span id="doc-review-status" class="chip chip-neutral">Not yet reviewed</span><button id="doc-review-button" class="btn btn-primary" type="button">Mark reviewed</button></div></div>
+    </section>
+    <div id="future-document-banner" class="notice notice-warning" hidden style="margin-bottom:18px"></div>
+    <div class="shared-progress card-shell"><div><div class="eyebrow">Documentation completeness</div><strong id="doc-progress-label">In progress</strong><span id="doc-progress-count">0 / 7 sections</span></div><div class="shared-progress-track"><span id="doc-progress-bar"></span></div><p id="doc-status-note">Any team member can contribute to any section.</p></div>
+    <section class="card-shell attendance-inline"><div><strong>Attendance</strong><span id="attendance-status">Loading…</span></div><a class="btn btn-outline btn-sm" href="#practice-attendance">Manage attendance on practice page</a></section>
+    <section class="section-head"><div><h2>Work completed</h2><p>Record the team’s work as one shared list. Any member can add or update an item.</p></div></section>
+    <section class="card-shell shared-list-card"><div id="work-items" class="shared-item-list"></div><div id="work-form" class="shared-add-form"><input id="work-text" class="form-input" type="text" maxlength="500" placeholder="Describe a completed task or milestone"><select id="work-category" class="form-select"><option>General</option><option>Mechanical</option><option>Programming</option><option>Electrical</option><option>CAD / Design</option><option>Outreach</option><option>Strategy</option><option>Business</option></select><button id="work-add" class="btn btn-primary" type="button">Add work</button></div></section>
+    <section class="section-head"><div><h2>Practice documentation</h2><p>Each section is part of the same document and can be completed by any team member.</p></div></section>
+    <div id="document-sections" class="shared-sections"></div>
+    <section class="section-head"><div><h2>Next-practice action items</h2><p>Carry unfinished work forward. Mark items complete when they are resolved.</p></div></section>
+    <section class="card-shell shared-list-card"><div id="next-items" class="shared-item-list"></div><div id="next-form" class="shared-add-form"><input id="next-text" class="form-input" type="text" maxlength="500" placeholder="Add a concrete follow-up action"><select id="next-category" class="form-select"><option>General</option><option>Mechanical</option><option>Programming</option><option>Electrical</option><option>CAD / Design</option><option>Outreach</option><option>Strategy</option><option>Business</option></select><button id="next-add" class="btn btn-primary" type="button">Add next step</button></div></section>
+    <section class="section-head"><div><h2>Revision history</h2><p>Recent contributions across the shared practice document.</p></div></section>
+    <section id="document-history" class="card-shell history-list"></section>
+  </div>`;
+  attachLogout("#logout-button");
+  initializeSharedDocument(user);
+});
+</script>
+</body></html>
