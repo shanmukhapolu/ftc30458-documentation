@@ -27,7 +27,7 @@
             '<div class="page-header-copy">' +
               '<div class="eyebrow">MasterMinds · FTC 30458</div>' +
               '<h2 id="welcome" class="page-title">Welcome back.</h2>' +
-              '<p class="page-subtitle">A live view of practices, team documentation, and anything you still need to log.</p>' +
+              '<p class="page-subtitle">A live view of practices, team documentation, and shared documents that need attention.</p>' +
             '</div>' +
             '<div class="page-actions">' +
               '<button id="create-today" class="btn btn-primary" type="button">Add Practice</button>' +
@@ -37,24 +37,24 @@
 
         '<section class="stats-grid">' +
           '<article class="stat-card"><div class="stat-label">Practices</div><div id="stat-practices" class="stat-value">—</div><div class="stat-meta">Team practices logged</div></article>' +
-          '<article class="stat-card"><div class="stat-label">My Logs</div><div id="stat-my-logs" class="stat-value">—</div><div class="stat-meta">Practices I&apos;ve documented</div></article>' +
+          '<article class="stat-card"><div class="stat-label">Complete documents</div><div id="stat-my-logs" class="stat-value">—</div><div class="stat-meta">Shared documents marked complete</div></article>' +
           '<article class="stat-card"><div class="stat-label">Today</div><div id="stat-today" class="stat-value">—</div><div class="stat-meta">Your current practice</div></article>' +
-          '<article class="stat-card"><div class="stat-label">Overdue</div><div id="stat-overdue" class="stat-value">—</div><div class="stat-meta">Missing past logs</div></article>' +
+          '<article class="stat-card"><div class="stat-label">Overdue</div><div id="stat-overdue" class="stat-value">—</div><div class="stat-meta">Past documents still in progress</div></article>' +
         '</section>' +
 
         '<section class="quick-grid">' +
           '<article class="quick-card"><div class="quick-card-label">Today&apos;s documentation</div><div id="today-status" class="quick-card-value">—</div><div id="today-status-note" class="quick-card-note">Checking…</div></article>' +
-          '<article class="quick-card"><div class="quick-card-label">Team completion</div><div id="team-completion" class="quick-card-value">—</div><div class="quick-card-note">Members documented today</div></article>' +
+          '<article class="quick-card"><div class="quick-card-label">Team completion</div><div id="team-completion" class="quick-card-value">—</div><div class="quick-card-note">Latest document status</div></article>' +
           '<article class="quick-card"><div class="quick-card-label">Latest practice</div><div id="latest-practice" class="quick-card-value">—</div><div id="latest-practice-note" class="quick-card-note">No practice yet</div></article>' +
         '</section>' +
 
-        '<section class="section-head"><div><h2>Needs your attention</h2><p>Past practices you still have not documented.</p></div></section>' +
+        '<section class="section-head"><div><h2>Needs your attention</h2><p>Past practice documents that still need team contributions.</p></div></section>' +
         '<section id="overdue-section" class="card-shell" style="padding:20px;margin-bottom:28px"><div id="overdue-list" class="overdue-list"></div></section>' +
 
         '<section class="section-head"><div><h2>Recent practices</h2><p>The engineering record builds one practice at a time.</p></div><a class="btn btn-outline btn-sm" href="./practices.html">View all</a></section>' +
         '<section class="card-shell" style="padding:8px 20px;margin-bottom:28px"><div id="recent-practices" class="practice-list"></div></section>' +
 
-        '<section class="section-head"><div><h2>Recent activity</h2><p>Latest member documentation, synced live.</p></div></section>' +
+        '<section class="section-head"><div><h2>Recent activity</h2><p>Latest shared-document contributions, synced live.</p></div></section>' +
         '<section class="card-shell" style="padding:8px 20px"><div id="recent-activity" class="activity-list"></div></section>';
 
       attachLogout("#logout-button");

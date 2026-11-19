@@ -1,6 +1,7 @@
 import { db } from "./firebase.js?v=20261118-01";
 import { collection, doc, getDoc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { isFuturePractice, formatPracticeSchedule } from "./practice-editor.js?v=20260926-02";
+import { isFuturePractice, formatPracticeSchedule, initializePracticeEditor, openPracticeEditor } from "./practice-editor.js?v=20260926-02";
+import { deletePracticeCompletely } from "./practice-delete.js?v=20260926-02";
 import { showToast } from "./ui.js?v=20260926-02";
 
 const SECTION_DEFS = [
@@ -36,6 +37,7 @@ function progress() {
   const score = filled + (workCount ? 1 : 0);
   return {filled,workCount,total,score,complete:score===total};
 }
+async function syncMeta() { const p=progress(); await setDoc(doc(db,"practices",practice.id,"documentMeta","main"),{complete:p.complete,completionScore:p.score,totalSections:p.total,lastContributionAt:serverTimestamp(),lastContributorName:displayName(),updatedAt:serverTimestamp()},{merge:true}); }
 function renderHeader() {
   $("doc-practice-title").textContent = practice.title || "Untitled practice";
   $("doc-practice-meta").textContent = formatPracticeSchedule(practice) + (practice.location ? " · "+practice.location : "");
@@ -71,6 +73,7 @@ async function saveSection(id,button) {
       content, updatedAt:serverTimestamp(), updatedBy:user.uid, updatedByName:displayName()
     },{merge:true});
     await addHistory("Updated section",SECTION_DEFS.find(s=>s.id===id)?.title||id,id);
+    await syncMeta();
     showToast("Section saved.","success");
   } catch(error) {
     console.error("Section save failed:",error);
@@ -108,6 +111,7 @@ async function addItem(type) {
       createdAt:serverTimestamp(),updatedAt:serverTimestamp()
     });
     await addHistory(type==="work"?"Added work item":"Added next step",text);
+    await syncMeta();
     textInput.value="";
     showToast("Added to the shared document.","success");
   } catch(error){console.error("Item add failed:",error);showToast("Could not add item: "+error.message,"error",7000);}
@@ -122,6 +126,7 @@ async function editItem(id) {
   try {
     await updateDoc(doc(db,"practices",practice.id,"documentItems",id),{text,updatedAt:serverTimestamp(),updatedBy:user.uid,updatedByName:displayName()});
     await addHistory("Edited item",text);
+    await syncMeta();
   } catch(error){showToast("Could not update item: "+error.message,"error",7000);}
 }
 async function removeItem(id) {
@@ -130,6 +135,7 @@ async function removeItem(id) {
   try {
     await deleteDoc(doc(db,"practices",practice.id,"documentItems",id));
     await addHistory("Removed item",item.text);
+    await syncMeta();
   } catch(error){showToast("Could not remove item: "+error.message,"error",7000);}
 }
 async function toggleItem(id) {
@@ -139,6 +145,7 @@ async function toggleItem(id) {
   try {
     await updateDoc(doc(db,"practices",practice.id,"documentItems",id),{status,updatedAt:serverTimestamp(),updatedBy:user.uid,updatedByName:displayName()});
     await addHistory(status==="complete"?"Completed next step":"Reopened next step",item.text);
+    await syncMeta();
   } catch(error){showToast("Could not update next step: "+error.message,"error",7000);}
 }
 async function toggleReview() {
@@ -150,6 +157,7 @@ async function toggleReview() {
       reviewedByName:reviewed?displayName():null,updatedAt:serverTimestamp()
     },{merge:true});
     await addHistory(reviewed?"Marked document reviewed":"Reopened document for review",reviewed?"Reviewed":"Reopened");
+    await syncMeta();
   } catch(error){showToast("Review status could not be updated: "+error.message,"error",7000);}
 }
 function renderHistory() {
@@ -162,6 +170,7 @@ function updateReadOnly() {
   document.querySelectorAll("#document-sections textarea,#document-sections button,#work-form input,#work-form select,#work-form button,#next-form input,#next-form select,#next-form button,#doc-review-button").forEach(el=>el.disabled=locked);
   if(locked)$("future-document-banner").textContent="This practice has not started. The shared document is available to view, but editing opens at the scheduled start time.";
 }
+async function saveAttendance(status){try{await setDoc(doc(db,"practices",practice.id,"attendance",user.uid),{userId:user.uid,memberName:displayName(),status,updatedAt:serverTimestamp()},{merge:true});showToast("Attendance updated.","success");}catch(error){showToast("Attendance could not be updated: "+error.message,"error",7000);}}
 function subscribe() {
   const base=["practices",practice.id];
   unsubs.push(onSnapshot(collection(db,...base,"documentSections"),snap=>{
@@ -181,7 +190,8 @@ function subscribe() {
   },error=>console.error("Document metadata failed:",error)));
   unsubs.push(onSnapshot(doc(db,...base,"attendance",user.uid),snap=>{
     attendance=snap.exists()?snap.data():null;
-    $("attendance-status").textContent=attendance?.status==="not_present"?"You are marked not present":"Attendance: present / not marked absent";
+    $("attendance-status").textContent=attendance?.status==="not_present"?"You are marked not present":"You are marked present";
+    $("attendance-present").classList.toggle("btn-primary",attendance?.status!=="not_present");$("attendance-absent").classList.toggle("btn-danger",attendance?.status==="not_present");
   }));
 }
 export async function initializeSharedDocument(authUser) {
@@ -195,6 +205,11 @@ export async function initializeSharedDocument(authUser) {
     $("doc-practice-title").textContent=practice.title||"Untitled practice";
     $("doc-practice-meta").textContent=formatPracticeSchedule(practice);
     $("attendance-status").textContent="Loading attendance…";
+    initializePracticeEditor(user,savedId=>{if(savedId)location.href="./practice.html?id="+encodeURIComponent(savedId);});
+    $("edit-practice").addEventListener("click",()=>openPracticeEditor(practice));
+    $("delete-practice").addEventListener("click",async()=>{if(!confirm("Delete this practice and all of its documentation? This cannot be undone."))return;const button=$("delete-practice");button.disabled=true;button.textContent="Deleting…";try{await deletePracticeCompletely(practice.id);location.href="./practices.html";}catch(error){button.disabled=false;button.textContent="Delete Practice";showToast("Practice deletion failed: "+error.message,"error",8000);}});
+    $("attendance-present").addEventListener("click",()=>saveAttendance("attending"));
+    $("attendance-absent").addEventListener("click",()=>saveAttendance("not_present"));
     $("work-add").addEventListener("click",()=>addItem("work"));
     $("next-add").addEventListener("click",()=>addItem("next"));
     $("doc-review-button").addEventListener("click",toggleReview);

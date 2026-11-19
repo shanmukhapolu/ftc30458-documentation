@@ -74,23 +74,17 @@ function render(){
   list.innerHTML=filtered.map(practice=>{
     const logs=allLogsByPractice.get(practice.id)||[];
     const attendance=myAttendance(practice.id);
-    const hasLog=logs.some(log=>log.id===currentUser.uid);
+    const hasLog=false;
     const future=isFuturePractice(practice);
 
-    let statusChip=hasLog
-      ? '<span class="chip chip-success">Your log saved</span>'
-      : attendance==="not_present"
-        ? '<span class="chip chip-neutral">Not present</span>'
-        : future
-          ? '<span class="chip chip-primary">Logging locked</span>'
-          : '<span class="chip chip-warning">Your log missing</span>';
+    let statusChip=future ? '<span class="chip chip-primary">Upcoming</span>' : '<span class="chip chip-warning">Shared document</span>';
 
     return '<article class="practice-row" tabindex="0" data-id="'+esc(practice.id)+'">'+
       '<div class="practice-number">LOG<div class="practice-date">'+esc(future?"Upcoming":"Practice")+'</div></div>'+
       '<div class="practice-main">'+
         '<div class="practice-title-line"><h3 class="practice-title">'+esc(practice.title||"Untitled practice")+'</h3>'+stateLabel(practice)+'</div>'+
         '<p class="practice-description">'+esc(formatPracticeSchedule(practice))+(practice.location?" · "+esc(practice.location):"")+'</p>'+
-        '<div class="practice-meta"><span>'+logs.length+' member '+(logs.length===1?"log":"logs")+'</span><span>•</span><span>Synced for everyone</span>'+(attendance==="not_present"?'<span>•</span><span>You are marked not present</span>':"")+'</div>'+
+        '<div class="practice-meta"><span>'+'Shared document'+'</span><span>•</span><span>Synced for everyone</span>'+(attendance==="not_present"?'<span>•</span><span>Attendance is tracked separately</span>':"")+'</div>'+
       '</div>'+
       '<div class="practice-side">'+
         statusChip+

@@ -1,5 +1,5 @@
 import { db } from "./firebase.js?v=20260918-03";
-import { collection, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { collection, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { showToast } from "./ui.js?v=20260926-02";
 import { initializePracticeEditor, openPracticeEditor, isFuturePractice, formatPracticeSchedule } from "./practice-editor.js?v=20260926-02";
 
@@ -51,8 +51,8 @@ function render(){
   const today=todayKey();
   const todayPractices=practices.filter(p=>(p.dateKey||p.id)===today).sort((a,b)=>startMs(a)-startMs(b));
   const activeToday=todayPractices.find(p=>!isFuturePractice(p)&&endMs(p)>=Date.now())||todayPractices[0]||null;
-  const overdue=practices.filter(p=>endMs(p)<Date.now()&&!myLogFor(p.id)&&myAttendanceFor(p.id)?.status!=="not_present");
-  const myLogCount=[...myLogsByPractice.values()].filter(Boolean).length;
+  const overdue=practices.filter(p=>endMs(p)<Date.now()&&!myLogFor(p.id)?.complete);
+  const myLogCount=[...myLogsByPractice.values()].filter(item=>item?.complete).length;
 
   statPractices.textContent=practices.length;
   statMyLogs.textContent=myLogCount;
@@ -71,32 +71,32 @@ function render(){
     }else if(activeToday&&myAttendanceFor(activeToday.id)?.status==="not_present"){
       todayStatus.textContent="Not present";
       todayNote.textContent="No log required.";
-    }else if(mine){
-      todayStatus.textContent="Logged";
-      todayNote.textContent="Your documentation is saved.";
+    }else if(mine?.complete){
+      todayStatus.textContent="Complete";
+      todayNote.textContent="The shared practice document is complete.";
     }else{
-      todayStatus.textContent="Due";
-      todayNote.textContent="Your current practice log is still missing.";
+      todayStatus.textContent="In progress";
+      todayNote.textContent="The team document still needs contributions.";
     }
   }
 
   latestPractice.textContent=practices.length?(practices[0].title||formatDateKey(practices[0].dateKey||practices[0].id)):"—";
   latestPracticeNote.textContent=practices.length?formatPracticeSchedule(practices[0]):"No practice yet";
-  teamCompletion.textContent=latestPracticeLogs.length;
+  teamCompletion.textContent=(latestPracticeLogs.length?latestPracticeLogs.length+" updates":"—");
 
   overdueList.innerHTML=overdue.length
     ? overdue.slice(0,10).map(p=>{
-        return '<div class="overdue-item"><div><strong>'+esc(p.title||formatDateKey(p.dateKey||p.id))+'</strong><span>'+esc(formatPracticeSchedule(p))+'</span></div><a class="btn btn-outline btn-sm" href="./log-entry.html?practiceId='+encodeURIComponent(p.id)+'">Log it</a></div>';
+        return '<div class="overdue-item"><div><strong>'+esc(p.title||formatDateKey(p.dateKey||p.id))+'</strong><span>'+esc(formatPracticeSchedule(p))+'</span></div><a class="btn btn-outline btn-sm" href="./practice.html?id='+encodeURIComponent(p.id)+'">Complete document</a></div>';
       }).join("")
     : '<div class="notice notice-success">You are caught up. No past practice logs are missing.</div>';
 
   recent.innerHTML=practices.length
     ? practices.slice(0,8).map(p=>{
-        const mine=Boolean(myLogFor(p.id));
+        const mine=Boolean(myLogFor(p.id)?.complete);
         const absent=myAttendanceFor(p.id)?.status==="not_present";
         const future=isFuturePractice(p);
-        const status=absent?"Not present":future?"Upcoming":mine?"Logged":"Needs your log";
-        const chip=absent?"chip-neutral":future?"chip-primary":mine?"chip-success":"chip-warning";
+        const status=future?"Upcoming":mine?"Complete":"In progress";
+        const chip=future?"chip-primary":mine?"chip-success":"chip-warning";
         return '<article class="practice-row" data-id="'+esc(p.id)+'"><div class="practice-number">LOG<div class="practice-date">'+esc(statusLabel(p))+'</div></div><div class="practice-main"><div class="practice-title-line"><h3 class="practice-title">'+esc(p.title||"Untitled practice")+'</h3><span class="chip '+chip+'">'+esc(status)+'</span></div><p class="practice-description">'+esc(formatPracticeSchedule(p))+(p.location?" · "+esc(p.location):"")+'</p><div class="practice-meta"><span>Shared practice</span><span>•</span><span>Synced for everyone</span></div></div><div class="practice-side"><span class="chip '+chip+'">'+esc(status)+'</span></div></article>';
       }).join("")
     : '<div class="empty-state"><div class="empty-icon">▣</div><h3>No practices yet</h3><p>Create the first shared practice to begin the documentation record.</p></div>';
@@ -106,10 +106,10 @@ function render(){
   recentActivity.innerHTML=latestPracticeLogs.length
     ? latestPracticeLogs.slice().sort((a,b)=>(b.updatedAt?.toMillis?b.updatedAt.toMillis():0)-(a.updatedAt?.toMillis?a.updatedAt.toMillis():0)).slice(0,8)
       .map(log=>{
-        const taskText=Array.isArray(log.tasks)&&log.tasks.length?log.tasks[0].text:(log.majorAccomplishment||"Updated a practice log.");
-        return '<div class="activity-row"><div class="activity-dot"></div><div class="activity-copy"><strong>'+esc(log.memberName||log.memberEmail||"Team Member")+" — "+esc(taskText)+'</strong><span>Latest practice</span></div></div>';
+        const taskText=log.detail||"Updated the shared practice document.";
+        return '<div class="activity-row"><div class="activity-dot"></div><div class="activity-copy"><strong>'+esc(log.memberName||"Team Member")+" — "+esc(log.action||"Updated document")+": "+esc(taskText)+'</strong><span>Latest practice</span></div></div>';
       }).join("")
-    : '<div class="empty-state"><p>No member documentation has been saved yet.</p></div>';
+    : '<div class="empty-state"><p>No shared-document contributions have been saved yet.</p></div>';
 }
 
 function syncPracticeLogListeners(){
@@ -123,8 +123,8 @@ function syncPracticeLogListeners(){
   }
   practices.forEach(practice=>{
     if(practiceLogUnsubscribers.has(practice.id))return;
-    const unsubscribe=onSnapshot(doc(db,"practices",practice.id,"logs",currentUser.uid),snapshot=>{
-      if(snapshot.exists())myLogsByPractice.set(practice.id,{id:snapshot.id,...snapshot.data()});
+    const unsubscribe=onSnapshot(doc(db,"practices",practice.id,"documentMeta","main"),snapshot=>{
+      if(snapshot.exists())myLogsByPractice.set(practice.id,snapshot.data());
       else myLogsByPractice.delete(practice.id);
       render();
     },error=>{
@@ -163,7 +163,7 @@ function startLatestLogListener(id){
   latestPracticeId=id;
   if(latestPracticeUnsubscribe){latestPracticeUnsubscribe();latestPracticeUnsubscribe=null;}
   if(!id){latestPracticeLogs=[];render();return;}
-  latestPracticeUnsubscribe=onSnapshot(collection(db,"practices",id,"logs"),snapshot=>{
+  latestPracticeUnsubscribe=onSnapshot(query(collection(db,"practices",id,"documentHistory"),orderBy("createdAt","desc")),snapshot=>{
     latestPracticeLogs=snapshot.docs.map(item=>({id:item.id,...item.data()}));
     render();
   },error=>{

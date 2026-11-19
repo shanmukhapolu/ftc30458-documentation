@@ -38,7 +38,7 @@ export function renderShell(options) {
     '<nav class="sidebar-nav"><div class="nav-section"><div class="nav-label">Workspace</div><ul class="nav-list">'+
       navItem("dashboard","Dashboard","dashboard.html",icons.home,active)+
       navItem("practices","Practices","practices.html",icons.practices,active)+
-      navItem("my-log","My Logs","my-log.html",icons.log,active)+
+      navItem("my-log","Team Documents","my-log.html",icons.log,active)+
     '</ul></div>'+
     '<div class="nav-section"><div class="nav-label">Team</div><ul class="nav-list">'+
       navItem("team","Team","team.html",icons.team,active)+
