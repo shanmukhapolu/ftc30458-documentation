@@ -1,7 +1,7 @@
 import { db } from "./firebase.js?v=20261119-01";
 import {
   collection, doc, getDoc, getDocs, onSnapshot, setDoc, addDoc, updateDoc,
-  deleteDoc, serverTimestamp, query, orderBy, increment, writeBatch
+  deleteDoc, serverTimestamp, query, orderBy, increment, writeBatch, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { isFuturePractice, formatPracticeSchedule, initializePracticeEditor, openPracticeEditor } from "./practice-editor.js?v=20260926-02";
 import { deletePracticeCompletely } from "./practice-delete.js?v=20260926-02";
@@ -18,7 +18,7 @@ const SECTION_DEFS = [
 ];
 const CATEGORIES=["General","Mechanical","Programming","Electrical","CAD / Design","Outreach","Strategy","Business"];
 let user=null,practice=null,sections={},items=[],contributors=[],meta={},attendance=null;
-let unsubs=[],editingSection=null,editingItem=null,editingList=null,activeSession=null,sessionTimer=null,sessionBusy=false;
+let unsubs=[],editingSection=null,editingSectionOriginal="",editingItem=null,editingList=null,activeSession=null,sessionTimer=null,sessionBusy=false;
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 const name=()=>user?.displayName||user?.email||"Team member";
@@ -172,6 +172,7 @@ async function openSectionEditor(id){
   editingSection=id;
   $("section-editor-title").textContent="Edit "+section.title;
   $("section-markdown").value=sections[id]?.content||"";
+  editingSectionOriginal=$("section-markdown").value;
   $("markdown-preview").innerHTML=markdownToHtml($("section-markdown").value);
   $("section-editor-modal").classList.add("open");$("section-editor-modal").setAttribute("aria-hidden","false");
   document.body.style.overflow="hidden";
@@ -181,18 +182,22 @@ async function openSectionEditor(id){
 async function closeSectionEditor(){
   $("section-editor-modal").classList.remove("open");$("section-editor-modal").setAttribute("aria-hidden","true");
   document.body.style.overflow="";
-  editingSection=null;
+  editingSection=null;editingSectionOriginal="";
   await endEditSession();
 }
 async function saveSection(){
   if(!editingSection||!canEdit())return;
-  const id=editingSection,button=$("section-save"),before=String(sections[id]?.content||""),after=$("section-markdown").value.trim();
+  const id=editingSection,button=$("section-save"),before=editingSectionOriginal,after=$("section-markdown").value.trim();
   if(before===after){await closeSectionEditor();return;}
   button.disabled=true;button.textContent="Saving…";
   try{
-    await setDoc(doc(db,"practices",practice.id,"documentSections",id),{
-      content:after,updatedAt:serverTimestamp(),updatedBy:user.uid,updatedByName:name()
-    },{merge:true});
+    const sectionRef=doc(db,"practices",practice.id,"documentSections",id);
+    await runTransaction(db,async transaction=>{
+      const latest=await transaction.get(sectionRef);
+      const latestContent=String(latest.data()?.content||"");
+      if(latestContent!==before)throw new Error("Another team member saved this section while you were editing. Your draft is still open. Copy it, cancel, reopen the section, and combine the changes.");
+      transaction.set(sectionRef,{content:after,updatedAt:serverTimestamp(),updatedBy:user.uid,updatedByName:name()},{merge:true});
+    });
     await recordContribution("Edited section",sectionDef(id).title,id,before,after);
     await syncCompleteness();
     showToast("Section saved.","success");
@@ -246,7 +251,7 @@ async function addItem(type){
 }
 function openItemEditor(id){
   const item=items.find(x=>x.id===id);if(!item||!canEdit())return;
-  editingItem=item;
+  editingItem={...item};
   $("item-editor-title").textContent=item.type==="work"?"Edit completed work":"Edit next step";
   $("item-editor-text").value=item.text;$("item-editor-category").value=item.category||"General";
   $("item-editor-modal").classList.add("open");
@@ -260,7 +265,12 @@ async function saveItem(){
   if(!after){showToast("Enter a description before saving.","warning");return;}
   const before=item.text;
   try{
-    await updateDoc(doc(db,"practices",practice.id,"documentItems",item.id),{text:after,category,updatedAt:serverTimestamp(),updatedBy:user.uid,updatedByName:name()});
+    const itemRef=doc(db,"practices",practice.id,"documentItems",item.id);
+    await runTransaction(db,async transaction=>{
+      const latest=await transaction.get(itemRef),data=latest.data()||{};
+      if(String(data.text||"")!==before||String(data.category||"General")!==String(item.category||"General"))throw new Error("Another team member changed this item while you were editing. Your draft is still open. Copy it, cancel, reopen the item, and combine the changes.");
+      transaction.update(itemRef,{text:after,category,updatedAt:serverTimestamp(),updatedBy:user.uid,updatedByName:name()});
+    });
     await recordContribution("Edited item",after,"",before,after);
     await closeItemEditor();
   }catch(error){showToast("Could not update item: "+error.message,"error",7000);}
