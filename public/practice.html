@@ -5,48 +5,59 @@
   <title>Practice Document | MasterMinds</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/app.css?v=20261119-02"><link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./css/app.css?v=20261119-03"><link rel="icon" href="./favicon.svg" type="image/svg+xml">
 </head>
 <body>
   <div id="app-shell"></div>
   <script type="module">
     import {requireAuth,attachLogout} from "./js/auth.js?v=20260926-02";
-    import {renderShell} from "./js/shell.js?v=20261119-02";
-    import {initializeSharedDocument} from "./js/shared-document.js?v=20261119-02";
+    import {renderShell} from "./js/shell.js?v=20261119-03";
+    import {initializeSharedDocument} from "./js/shared-document.js?v=20261119-03";
     requireAuth(async user=>{
       renderShell({active:"practices",title:"Practice document",user});
       document.getElementById("page-content").innerHTML=`
         <div id="document-root" hidden>
           <section class="page-header document-page-header">
-            <a class="btn btn-outline btn-sm" href="./practices.html">← Practices</a>
+            <a class="btn btn-outline btn-sm document-back-link" href="./practices.html">← Practices</a>
             <div class="page-header-row">
-              <div class="page-header-copy"><div class="eyebrow">Engineering record</div><h2 id="doc-practice-title" class="page-title">Loading document…</h2><p id="doc-practice-meta" class="page-subtitle"></p><p id="doc-last-edited" class="document-last-edited">Loading last edit…</p></div>
-              <div class="page-actions"><button id="edit-practice" class="btn btn-outline" type="button">Edit practice</button><button id="delete-practice" class="btn btn-danger" type="button">Delete</button></div>
+              <div class="page-header-copy">
+                <div class="eyebrow">Engineering practice</div>
+                <h2 id="doc-practice-title" class="page-title">Loading date…</h2>
+                <p id="doc-practice-meta" class="page-subtitle"></p>
+                <p id="doc-last-edited" class="document-last-edited">Loading last edit…</p>
+              </div>
+              <div class="page-actions document-page-actions">
+                <button id="export-pdf" class="btn btn-outline" type="button">Export PDF</button>
+                <button id="edit-practice" class="btn btn-outline" type="button">Edit details</button>
+                <button id="delete-practice" class="btn btn-danger" type="button">Delete</button>
+              </div>
             </div>
           </section>
           <div id="future-document-banner" class="notice notice-warning" hidden style="margin-bottom:20px"></div>
-          <section class="card-shell attendance-inline">
+          <section class="card-shell attendance-inline document-attendance">
             <div><strong>Your attendance</strong><span id="attendance-status">Loading…</span></div>
             <div class="attendance-actions"><button id="attendance-present" class="btn btn-outline btn-sm" type="button">Present</button><button id="attendance-absent" class="btn btn-outline btn-sm" type="button">Not present</button></div>
           </section>
-          <div class="document-layout">
-            <main>
-              <section class="document-section-group"><div class="section-head"><div><h2>Practice summary</h2><p>A single, readable record of the team’s work and findings.</p></div></div><div id="document-sections" class="document-sections"></div></section>
-              <section class="document-section-group">
-                <div class="section-head"><div><h2>Work completed</h2><p>Team accomplishments recorded during this practice.</p></div><button id="edit-work-list" class="btn btn-outline btn-sm" type="button">Edit list</button></div>
-                <div class="card-shell document-list-card"><div id="work-items"></div><div id="work-add-form" class="document-add-form" hidden><input id="work-text" class="form-input" type="text" maxlength="500" placeholder="Describe completed work"><select id="work-category" class="form-select"></select><button id="work-add" class="btn btn-primary btn-sm" type="button">Add item</button></div></div>
+          <main class="document-layout">
+            <article class="practice-document" id="practice-document">
+              <div id="document-sections" class="document-sections"></div>
+              <section class="document-section document-list-section">
+                <div class="document-section-head"><h3>Work completed</h3><button id="edit-work-list" class="btn btn-outline btn-xs document-edit-button" type="button">Edit</button></div>
+                <div id="work-items"></div>
+                <div id="work-add-form" class="document-add-form" hidden><input id="work-text" class="form-input" type="text" maxlength="500" placeholder="Describe completed work"><select id="work-category" class="form-select"></select><button id="work-add" class="btn btn-primary btn-sm" type="button">Add item</button></div>
               </section>
-              <section class="document-section-group">
-                <div class="section-head"><div><h2>Next-practice actions</h2><p>Follow-up items the team should carry into its next session.</p></div><button id="edit-next-list" class="btn btn-outline btn-sm" type="button">Edit list</button></div>
-                <div class="card-shell document-list-card"><div id="next-items"></div><div id="next-add-form" class="document-add-form" hidden><input id="next-text" class="form-input" type="text" maxlength="500" placeholder="Describe the follow-up action"><select id="next-category" class="form-select"></select><button id="next-add" class="btn btn-primary btn-sm" type="button">Add item</button></div></div>
+              <section class="document-section document-list-section">
+                <div class="document-section-head"><h3>Next-practice actions</h3><button id="edit-next-list" class="btn btn-outline btn-xs document-edit-button" type="button">Edit</button></div>
+                <div id="next-items"></div>
+                <div id="next-add-form" class="document-add-form" hidden><input id="next-text" class="form-input" type="text" maxlength="500" placeholder="Describe the follow-up action"><select id="next-category" class="form-select"></select><button id="next-add" class="btn btn-primary btn-sm" type="button">Add item</button></div>
               </section>
-              <section class="document-section-group">
-                <div class="section-head"><div><h2>Contributors</h2><p>Everyone who has added to or edited this practice document.</p></div></div>
+              <section class="document-section contributors-section">
+                <div class="document-section-head"><h3>Contributors</h3></div>
                 <div id="contributors-list" class="contributors-grid-wrap"></div>
               </section>
-              <div class="document-import-row"><span>Have older individual logs for this practice?</span><button id="import-legacy-button" class="btn btn-outline btn-sm" type="button">Import older logs</button></div>
-            </main>
-          </div>
+            </article>
+          </main>
+          <div class="document-import-row"><span>Have older individual logs for this practice?</span><button id="import-legacy-button" class="btn btn-outline btn-sm" type="button">Import older logs</button></div>
         </div>
       `;
       const categoryOptions='<option>General</option><option>Mechanical</option><option>Programming</option><option>Electrical</option><option>CAD / Design</option><option>Outreach</option><option>Strategy</option><option>Business</option>';
@@ -55,13 +66,33 @@
       document.getElementById("page-content").insertAdjacentHTML("beforeend",`
         <div id="section-editor-modal" class="modal-backdrop" aria-hidden="true">
           <div class="modal section-editor-modal" role="dialog" aria-modal="true" aria-labelledby="section-editor-title">
-            <div class="modal-header"><div><div class="eyebrow">Markdown editor</div><h2 id="section-editor-title">Edit section</h2></div><button id="section-editor-close" class="modal-close" type="button" aria-label="Close">×</button></div>
-            <div class="section-editor-toolbar"><span>Supports headings, paragraphs, bold, italic, lists, quotes, links, and code blocks.</span><div><button id="markdown-show-write" class="btn btn-outline btn-xs" type="button">Write</button><button id="markdown-show-preview" class="btn btn-outline btn-xs" type="button">Preview</button></div></div>
-            <div class="markdown-editor-grid">
-              <div id="markdown-editor-pane"><textarea id="section-markdown" class="form-textarea markdown-source" maxlength="16000" placeholder="# Heading
-
-Write in paragraphs. Use **bold**, bullet lists, or links where useful."></textarea></div>
-              <div id="markdown-preview-pane" class="markdown-preview-pane" hidden><div id="markdown-preview" class="markdown-content"></div></div>
+            <div class="modal-header"><div><div class="eyebrow">Document editor</div><h2 id="section-editor-title">Edit section</h2></div><button id="section-editor-close" class="modal-close" type="button" aria-label="Close">×</button></div>
+            <div class="markdown-workspace">
+              <div class="markdown-editor-column">
+                <div class="markdown-toolbar" role="toolbar" aria-label="Text formatting">
+                  <button class="markdown-tool" type="button" data-md-action="bold" title="Bold"><strong>B</strong></button>
+                  <button class="markdown-tool" type="button" data-md-action="italic" title="Italic"><em>I</em></button>
+                  <button class="markdown-tool" type="button" data-md-action="underline" title="Underline"><u>U</u></button>
+                  <span class="markdown-toolbar-divider"></span>
+                  <button class="markdown-tool" type="button" data-md-action="h1" title="Heading 1">H1</button>
+                  <button class="markdown-tool" type="button" data-md-action="h2" title="Heading 2">H2</button>
+                  <button class="markdown-tool" type="button" data-md-action="h3" title="Heading 3">H3</button>
+                  <span class="markdown-toolbar-divider"></span>
+                  <button class="markdown-tool" type="button" data-md-action="bullet" title="Bulleted list">• List</button>
+                  <button class="markdown-tool" type="button" data-md-action="number" title="Numbered list">1. List</button>
+                  <button class="markdown-tool" type="button" data-md-action="quote" title="Quote">Quote</button>
+                  <span class="markdown-toolbar-divider"></span>
+                  <button class="markdown-tool" type="button" data-md-action="link" title="Insert link">Link</button>
+                  <button class="markdown-tool" type="button" data-md-action="code" title="Inline code">{ }</button>
+                  <button class="markdown-tool" type="button" data-md-action="codeblock" title="Code block">Code block</button>
+                  <button class="markdown-tool" type="button" data-md-action="rule" title="Horizontal line">—</button>
+                </div>
+                <textarea id="section-markdown" class="form-textarea markdown-source" maxlength="16000" spellcheck="true" placeholder="Write your contribution in paragraphs. Use the toolbar to format headings, emphasis, lists, links, and code."></textarea>
+              </div>
+              <div class="markdown-live-column">
+                <div class="markdown-live-label">Live preview</div>
+                <div id="markdown-preview" class="markdown-content markdown-live-preview"><p class="document-empty">Your formatted document will appear here as you type.</p></div>
+              </div>
             </div>
             <div class="modal-footer"><button id="section-cancel" class="btn btn-outline" type="button">Cancel</button><button id="section-save" class="btn btn-primary" type="button">Save changes</button></div>
           </div>

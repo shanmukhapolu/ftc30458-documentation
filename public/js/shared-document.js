@@ -3,7 +3,7 @@ import {
   collection, doc, getDoc, getDocs, onSnapshot, setDoc, addDoc, updateDoc,
   deleteDoc, serverTimestamp, query, orderBy, increment, writeBatch, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { isFuturePractice, formatPracticeSchedule, initializePracticeEditor, openPracticeEditor } from "./practice-editor.js?v=20260926-02";
+import { isFuturePractice, formatPracticeSchedule, formatPracticeDateOnly, initializePracticeEditor, openPracticeEditor } from "./practice-editor.js?v=20261119-03";
 import { deletePracticeCompletely } from "./practice-delete.js?v=20260926-02";
 import { showToast } from "./ui.js?v=20260926-02";
 
@@ -50,6 +50,7 @@ function inlineMarkdown(line){
   value=value.replace(/`([^`]+)`/g,"<code>$1</code>");
   value=value.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");
   value=value.replace(/\*([^*]+)\*/g,"<em>$1</em>");
+  value=value.replace(/\+\+([^+]+)\+\+/g,"<u>$1</u>");
   return value;
 }
 function markdownToHtml(markdown){
@@ -123,6 +124,10 @@ async function syncCompleteness(){
     complete:score===total,completionScore:score,totalSections:total,updatedAt:serverTimestamp()
   },{merge:true});
 }
+function practiceTiming(practice){
+  const parts=formatPracticeSchedule(practice).split(" · ");
+  return [parts.slice(1).join(" · "),practice.location].filter(Boolean).join(" · ")||"Practice session";
+}
 function renderLastEdited(){
   const who=meta.lastEditedByName||"No contributions yet";
   const when=formatDate(meta.lastEditedAt||practice.updatedAt||practice.createdAt);
@@ -131,7 +136,7 @@ function renderLastEdited(){
 function renderSections(){
   $("document-sections").innerHTML=SECTION_DEFS.map(section=>{
     const data=sections[section.id]||{},content=String(data.content||"").trim();
-    return '<article class="document-section"><div class="document-section-head"><div><h3>'+esc(section.title)+'</h3><p>'+esc(section.hint)+'</p></div><button class="btn btn-outline btn-sm" type="button" data-edit-section="'+section.id+'"'+(isFuturePractice(practice)?" disabled":"")+'>Edit</button></div><div class="markdown-content">'+(content?markdownToHtml(content):'<p class="document-empty">No content has been added to this section.</p>')+'</div><div class="document-section-meta">'+(data.updatedByName?"Last updated by "+esc(data.updatedByName)+" · "+esc(formatDate(data.updatedAt)):"Not yet documented")+'</div></article>';
+    return '<section class="document-section"><div class="document-section-head"><h3>'+esc(section.title)+'</h3><button class="btn btn-outline btn-xs document-edit-button" type="button" data-edit-section="'+section.id+'"'+(isFuturePractice(practice)?" disabled":"")+'>Edit</button></div><div class="markdown-content">'+(content?markdownToHtml(content):'<p class="document-empty">No content has been added yet.</p>')+'</div><div class="document-section-meta">'+(data.updatedByName?"Last updated by "+esc(data.updatedByName)+" · "+esc(formatDate(data.updatedAt)):"Not yet documented")+'</div></section>';
   }).join("");
   $("document-sections").querySelectorAll("[data-edit-section]").forEach(button=>button.addEventListener("click",()=>openSectionEditor(button.dataset.editSection)));
 }
@@ -339,7 +344,7 @@ async function importLegacyLogs(){
 }
 function renderContributors(){
   const sorted=contributors.slice().sort((a,b)=>(b.contributionCount||0)-(a.contributionCount||0));
-  $("contributors-list").innerHTML=sorted.length?'<div class="contributors-grid">'+sorted.map(person=>'<article class="contributor-card"><strong>'+esc(person.memberName||"Team member")+'</strong><span>'+Number(person.contributionCount||0)+' contributions</span><small>'+Number(person.wordsAdded||0).toLocaleString()+" words added · "+formatDuration(person.activeEditingMs)+" active editing time</small><small>Last contribution: "+esc(formatDate(person.lastActionAt))+'</small></article>').join("")+'</div>':'<p class="document-empty">No one has contributed yet.</p>';
+  $("contributors-list").innerHTML=sorted.length?'<div class="contributors-inline">'+sorted.map(person=>'<div class="contributor-inline"><strong>'+esc(person.memberName||"Team member")+'</strong><span>'+Number(person.contributionCount||0)+' contributions</span><small>'+Number(person.wordsAdded||0).toLocaleString()+" words · "+formatDuration(person.activeEditingMs)+" editing time · Last contribution "+esc(formatDate(person.lastActionAt))+'</small></div>').join("")+'</div>':'<p class="document-empty">No one has contributed yet.</p>';
 }
 function renderItemsAndContributors(){
   renderItems();renderContributors();
@@ -367,6 +372,50 @@ function subscribe(){
     attendance=snap.exists()?snap.data():null;renderAttendance();
   },error=>console.warn("Attendance status unavailable:",error)));
 }
+function applyMarkdownAction(action){
+  const input=$("section-markdown"),value=input.value;
+  let start=input.selectionStart,end=input.selectionEnd;
+  const selected=value.slice(start,end);
+  const inline=(prefix,suffix,placeholder="text")=>{
+    const text=selected||placeholder,replacement=prefix+text+suffix;
+    input.setRangeText(replacement,start,end,"select");
+    input.setSelectionRange(start+prefix.length,start+prefix.length+text.length);
+  };
+  if(action==="bold"){inline("**","**");}
+  else if(action==="italic"){inline("*","*");}
+  else if(action==="underline"){inline("++","++");}
+  else if(action==="code"){inline("`","`");}
+  else if(action==="link"){
+    const url=window.prompt("Enter the link URL:","https://");
+    if(!url)return;
+    const text=selected||url;
+    input.setRangeText("["+text+"]("+url.trim()+")",start,end,"select");
+  }
+  else if(action==="codeblock"){
+    const text=selected||"code";
+    const result="```\n"+text+"\n```";
+    input.setRangeText(result,start,end,"select");
+    input.setSelectionRange(start+4,start+4+text.length);
+  }
+  else if(action==="rule"){
+    input.setRangeText("\n---\n",start,end,"end");
+  }
+  else {
+    const lineStart=value.lastIndexOf("\n",Math.max(0,start-1))+1;
+    const lineEndIndex=value.indexOf("\n",end);
+    const lineEnd=lineEndIndex<0?value.length:lineEndIndex;
+    const block=value.slice(lineStart,lineEnd);
+    const prefix=action==="h1"?"# ":action==="h2"?"## ":action==="h3"?"### ":action==="bullet"?"- ":action==="number"?"1. ":action==="quote"?"> ":null;
+    if(!prefix)return;
+    const lines=block.split("\n");
+    const formatted=lines.map(line=>line.startsWith(prefix)?line.slice(prefix.length):prefix+line).join("\n");
+    input.setRangeText(formatted,lineStart,lineEnd,"select");
+    input.setSelectionRange(lineStart,lineStart+formatted.length);
+  }
+  input.focus();
+  input.dispatchEvent(new Event("input",{bubbles:true}));
+}
+
 function bindControls(){
   $("edit-practice").addEventListener("click",()=>openPracticeEditor(practice));
   $("delete-practice").addEventListener("click",async()=>{
@@ -386,8 +435,8 @@ function bindControls(){
   $("section-cancel").addEventListener("click",closeSectionEditor);
   $("section-editor-close").addEventListener("click",closeSectionEditor);
   $("section-markdown").addEventListener("input",()=>{$("markdown-preview").innerHTML=markdownToHtml($("section-markdown").value);});
-  $("markdown-show-preview").addEventListener("click",()=>{$("markdown-editor-pane").hidden=true;$("markdown-preview-pane").hidden=false;});
-  $("markdown-show-write").addEventListener("click",()=>{$("markdown-preview-pane").hidden=true;$("markdown-editor-pane").hidden=false;$("section-markdown").focus();});
+  document.querySelectorAll("[data-md-action]").forEach(button=>button.addEventListener("click",()=>applyMarkdownAction(button.dataset.mdAction)));
+  $("export-pdf").addEventListener("click",()=>{const previousTitle=document.title;document.title=formatPracticeDateOnly(practice)+" | MasterMinds Practice";window.addEventListener("afterprint",()=>{document.title=previousTitle;},{once:true});window.print();});
   $("section-editor-modal").addEventListener("click",e=>{if(e.target.id==="section-editor-modal")closeSectionEditor();});
   $("item-editor-cancel").addEventListener("click",closeItemEditor);
   $("item-editor-close").addEventListener("click",closeItemEditor);
@@ -410,8 +459,8 @@ export async function initializeSharedDocument(authUser){
     const snap=await getDoc(doc(db,"practices",practiceId));
     if(!snap.exists()||snap.data().deleting){$("document-root").hidden=false;$("document-root").innerHTML='<div class="notice notice-danger">This practice could not be found.</div>';return;}
     practice={id:snap.id,...snap.data()};
-    $("doc-practice-title").textContent=practice.title||"Untitled practice";
-    $("doc-practice-meta").textContent=formatPracticeSchedule(practice)+(practice.location?" · "+practice.location:"");
+    $("doc-practice-title").textContent=formatPracticeDateOnly(practice);
+    $("doc-practice-meta").textContent=practiceTiming(practice);
     $("future-document-banner").hidden=!isFuturePractice(practice);
     if(isFuturePractice(practice))$("future-document-banner").textContent="This practice has not started. The document is available to read, but editing opens at its scheduled start time.";
     $("section-editor-modal").setAttribute("aria-hidden","true");

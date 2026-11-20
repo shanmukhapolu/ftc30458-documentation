@@ -55,7 +55,6 @@ function injectModal() {
     '<div class="modal practice-editor-modal">'+
       '<div class="modal-header"><div><div class="eyebrow">Practice setup</div><h2 id="practice-editor-title">New Practice</h2></div><button id="practice-editor-close" class="modal-close" type="button" aria-label="Close">×</button></div>'+
       '<form id="practice-editor-form"><div class="modal-body">'+
-        '<div class="form-group"><label class="form-label" for="practice-name">Practice name</label><input id="practice-name" class="form-input" type="text" maxlength="100" placeholder="e.g., Intake Testing Session" required><div class="form-hint">Use a name that tells the team what this practice was for.</div></div>'+
         '<div class="form-row"><div class="form-group"><label class="form-label" for="practice-date">Date</label><input id="practice-date" class="form-input" type="date" required></div><div class="form-group"><label class="form-label" for="practice-location">Location</label><input id="practice-location" class="form-input" type="text" maxlength="120" placeholder="e.g., CHS Robotics Lab"></div></div>'+
         '<div class="form-row"><div class="form-group"><label class="form-label" for="practice-start">Start time</label><input id="practice-start" class="form-input" type="time" required></div><div class="form-group"><label class="form-label" for="practice-end">End time</label><input id="practice-end" class="form-input" type="time" required></div></div>'+
         '<div class="form-group"><label class="form-label" for="practice-description">Goals / notes</label><textarea id="practice-description" class="form-textarea" rows="4" maxlength="1000" placeholder="Optional goals, priorities, or notes for the team."></textarea></div>'+
@@ -72,7 +71,6 @@ function injectModal() {
   document.getElementById("practice-editor-form").addEventListener("submit",savePractice);
 }
 function setFormValues(practice) {
-  document.getElementById("practice-name").value=practice?.title||"";
   document.getElementById("practice-date").value=practice?.dateKey||localToday();
   document.getElementById("practice-start").value=practice?.startTime||defaultStartTime();
   document.getElementById("practice-end").value=practice?.endTime||defaultEndTime();
@@ -93,7 +91,7 @@ export function openPracticeEditor(practice=null){
   document.getElementById("practice-editor-save").textContent=practice?"Save Changes":"Create Practice";
   modal.classList.add("open");
   document.body.style.overflow="hidden";
-  setTimeout(()=>document.getElementById("practice-name").focus(),0);
+  setTimeout(()=>document.getElementById("practice-date").focus(),0);
 }
 export function closePracticeEditor(){
   if(!modal)return;
@@ -103,14 +101,12 @@ export function closePracticeEditor(){
 async function savePractice(event){
   event.preventDefault();
   clearError();
-  const title=document.getElementById("practice-name").value.trim();
   const dateKey=document.getElementById("practice-date").value;
   const startTime=document.getElementById("practice-start").value;
   const endTime=document.getElementById("practice-end").value;
   const location=document.getElementById("practice-location").value.trim();
   const description=document.getElementById("practice-description").value.trim();
 
-  if(!title)return showError("Practice name is required.");
   if(!dateKey||!startTime||!endTime)return showError("Date, start time, and end time are required.");
 
   const startAtMs=combineDateTime(dateKey,startTime);
@@ -122,7 +118,7 @@ async function savePractice(event){
   button.disabled=true;
   button.textContent=mode==="edit"?"Saving…":"Creating…";
   try{
-    const data={title,dateKey,startTime,endTime,startAtMs,endAtMs,location,description,updatedAt:serverTimestamp()};
+    const data={title:"",dateKey,startTime,endTime,startAtMs,endAtMs,location,description,updatedAt:serverTimestamp()};
     let savedId;
     if(mode==="edit"){
       await updateDoc(doc(db,"practices",editingPractice.id),data);
@@ -173,4 +169,11 @@ export function formatPracticeSchedule(practice){
   };
   const times=[formatTime(practice.startTime),formatTime(practice.endTime)].filter(Boolean);
   return dateText+(times.length?" · "+times.join("–"):"");
+}
+
+export function formatPracticeDateOnly(practice){
+  if(!practice?.dateKey)return "Practice";
+  const [year,month,day]=String(practice.dateKey).split("-").map(Number);
+  if(!year||!month||!day)return "Practice";
+  return new Intl.DateTimeFormat("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"}).format(new Date(year,month-1,day));
 }

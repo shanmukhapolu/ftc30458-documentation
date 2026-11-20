@@ -7,15 +7,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/app.css?v=20260926-02">
+  <link rel="stylesheet" href="./css/app.css?v=20261119-03">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 </head>
 <body>
   <div id="app-shell"></div>
   <script type="module">
-    import { requireAuth, attachLogout } from "./js/auth.js?v=20260918-03";
-    import { renderShell } from "./js/shell.js?v=20260918-03";
-    import { subscribeToTeam } from "./js/team.js?v=20260918-03";
+    import { requireAuth, attachLogout } from "./js/auth.js?v=20261119-03";
+    import { renderShell } from "./js/shell.js?v=20261119-03";
+    import { subscribeToTeam } from "./js/team.js?v=20261119-03";
 
     requireAuth(async function(user) {
       renderShell({ active: "team", title: "Team", user: user });
