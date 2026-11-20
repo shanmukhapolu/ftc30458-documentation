@@ -14,7 +14,7 @@ const SECTION_DEFS = [
   {id:"lessons",title:"Lessons learned",hint:"Technical and process lessons the team should carry forward."},
   {id:"testing",title:"Testing record",hint:"What was tested, under what conditions, the result, and any follow-up."},
   {id:"nextSteps",title:"Next-practice priorities",hint:"The most important priorities for the next session."},
-  {id:"evidence",title:"Supporting documentation",hint:"Links to relevant photos, CAD, code, videos, and test data."}
+  {id:"evidence",title:"Supporting documentation",hint:"Links to relevant photos, CAD, code, videos, and test data.",optional:true}
 ];
 const CATEGORIES=["General","Mechanical","Programming","Electrical","CAD / Design","Outreach","Strategy","Business"];
 let user=null,practice=null,sections={},items=[],contributors=[],meta={},attendance=null;
@@ -93,19 +93,19 @@ async function recordContribution(action,detail,sectionId="",before="",after="",
     wordsAdded:delta.wordsAdded,wordsRemoved:delta.wordsRemoved,
     userId:user.uid,memberName:name(),createdAt:serverTimestamp(),...extra
   };
-  await Promise.all([
-    addDoc(refs.history,event),
-    setDoc(refs.contributors,{
-      userId:user.uid,memberName:name(),contributionCount:increment(1),
-      wordsAdded:increment(delta.wordsAdded),wordsRemoved:increment(delta.wordsRemoved),
-      lastAction:action,lastActionDetail:detail,lastActionAt:serverTimestamp(),
-      updatedAt:serverTimestamp()
-    },{merge:true}),
-    setDoc(refs.meta,{
-      lastEditedAt:serverTimestamp(),lastEditedBy:user.uid,lastEditedByName:name(),
-      lastEditedAction:action,lastContributionAt:serverTimestamp()
-    },{merge:true})
-  ]);
+  const batch=writeBatch(db),eventRef=doc(refs.history);
+  batch.set(eventRef,event);
+  batch.set(refs.contributors,{
+    userId:user.uid,memberName:name(),contributionCount:increment(1),
+    wordsAdded:increment(delta.wordsAdded),wordsRemoved:increment(delta.wordsRemoved),
+    lastAction:action,lastActionDetail:detail,lastActionAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
+  },{merge:true});
+  batch.set(refs.meta,{
+    lastEditedAt:serverTimestamp(),lastEditedBy:user.uid,lastEditedByName:name(),
+    lastEditedAction:action,lastContributionAt:serverTimestamp()
+  },{merge:true});
+  await batch.commit();
   meta={...meta,lastEditedByName:name(),lastEditedAt:new Date(),lastEditedAction:action};
   renderLastEdited();
 }
@@ -115,9 +115,10 @@ async function syncCompleteness(){
     getDocs(collection(db,"practices",practice.id,"documentItems"))
   ]);
   const fresh={};sectionSnap.docs.forEach(d=>fresh[d.id]=d.data());
-  const filled=SECTION_DEFS.filter(s=>String(fresh[s.id]?.content||"").trim()).length;
+  const requiredSections=SECTION_DEFS.filter(s=>!s.optional);
+  const filled=requiredSections.filter(s=>String(fresh[s.id]?.content||"").trim()).length;
   const workCount=itemSnap.docs.filter(d=>d.data().type==="work").length;
-  const total=SECTION_DEFS.length+1,score=filled+(workCount?1:0);
+  const total=requiredSections.length+1,score=filled+(workCount?1:0);
   await setDoc(doc(db,"practices",practice.id,"documentMeta","main"),{
     complete:score===total,completionScore:score,totalSections:total,updatedAt:serverTimestamp()
   },{merge:true});
@@ -219,12 +220,13 @@ function renderItems(){
   document.querySelectorAll("[data-delete-item]").forEach(b=>b.addEventListener("click",()=>removeItem(b.dataset.deleteItem)));
   document.querySelectorAll("[data-complete]").forEach(b=>b.addEventListener("click",()=>toggleItem(b.dataset.complete)));
 }
-function openListEditor(type){
+async function openListEditor(type){
   if(!canEdit())return;
   if(editingSection)return;
-  if(editingList===type){closeListEditor();return;}
-  if(activeSession)endEditSession();
-  editingList=type;renderItems();startEditSession(type+"-list").catch(console.error);
+  if(editingList===type){await closeListEditor();return;}
+  if(activeSession)await endEditSession();
+  editingList=type;renderItems();
+  try{await startEditSession(type+"-list");}catch(error){console.error("List editing session failed:",error);}
 }
 async function closeListEditor(){
   editingList=null;renderItems();await endEditSession();
@@ -329,7 +331,7 @@ function renderItemsAndContributors(){
   renderItems();renderContributors();
 }
 function renderAttendance(){
-  $("attendance-status").textContent=attendance?.status==="not_present"?"You are marked not present":"You are marked present";
+  $("attendance-status").textContent=attendance?.status==="not_present"?"You are marked not present":attendance?.status==="attending"?"You are marked present":"Attendance not marked";
   $("attendance-present").classList.toggle("btn-primary",attendance?.status!=="not_present");
   $("attendance-absent").classList.toggle("btn-danger",attendance?.status==="not_present");
 }
