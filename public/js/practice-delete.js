@@ -4,7 +4,7 @@ export async function deletePracticeCompletely(practiceId) {
   if(!practiceId) throw new Error("A practice ID is required.");
   const practiceRef=doc(db,"practices",practiceId);
   await setDoc(practiceRef,{deleting:true,deletingAt:serverTimestamp()},{merge:true});
-  const names=["logs","attendance","documentSections","documentItems","documentMeta","documentHistory"];
+  const names=["logs","attendance","documentSections","documentItems","documentMeta","documentHistory","documentContributors","documentSessions"];
   const snapshots=await Promise.all(names.map(name=>getDocs(collection(db,"practices",practiceId,name))));
   const refs=snapshots.flatMap(snapshot=>snapshot.docs.map(item=>item.ref));
   for(let i=0;i<refs.length;i+=450){

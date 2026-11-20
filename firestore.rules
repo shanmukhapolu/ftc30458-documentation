@@ -42,6 +42,14 @@ service cloud.firestore {
         allow create: if signedIn() && practiceExists(practiceId) && practiceStarted(practiceId);
         allow update, delete: if signedIn() && get(/databases/$(database)/documents/practices/$(practiceId)).data.deleting == true;
       }
+      match /documentContributors/{uid} {
+        allow create, update: if signedIn() && practiceExists(practiceId) && practiceStarted(practiceId);
+        allow delete: if signedIn() && get(/databases/$(database)/documents/practices/$(practiceId)).data.deleting == true;
+      }
+      match /documentSessions/{sessionId} {
+        allow create, update: if signedIn() && practiceExists(practiceId) && practiceStarted(practiceId);
+        allow delete: if signedIn() && get(/databases/$(database)/documents/practices/$(practiceId)).data.deleting == true;
+      }
     }
   }
 }

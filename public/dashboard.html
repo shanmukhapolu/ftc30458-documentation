@@ -1,65 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard | FTC 30458 Engineering Log</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/app.css?v=20260926-02">
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-</head>
-<body>
-  <div id="app-shell"></div>
-  <script type="module">
-    import { requireAuth, attachLogout } from "./js/auth.js?v=20260918-03";
-    import { renderShell } from "./js/shell.js?v=20260918-03";
-    import { initializeDashboard } from "./js/dashboard.js?v=20261018-01";
-
-    requireAuth(async function(user) {
-      renderShell({ active: "dashboard", title: "Dashboard", user: user });
-
-      const page = document.getElementById("page-content");
-      page.innerHTML =
-        '<section class="page-header">' +
-          '<div class="page-header-row">' +
-            '<div class="page-header-copy">' +
-              '<div class="eyebrow">MasterMinds · FTC 30458</div>' +
-              '<h2 id="welcome" class="page-title">Welcome back.</h2>' +
-              '<p class="page-subtitle">A live view of practices, team documentation, and shared documents that need attention.</p>' +
-            '</div>' +
-            '<div class="page-actions">' +
-              '<button id="create-today" class="btn btn-primary" type="button">Add Practice</button>' +
-            '</div>' +
-          '</div>' +
-        '</section>' +
-
-        '<section class="stats-grid">' +
-          '<article class="stat-card"><div class="stat-label">Practices</div><div id="stat-practices" class="stat-value">—</div><div class="stat-meta">Team practices logged</div></article>' +
-          '<article class="stat-card"><div class="stat-label">Complete documents</div><div id="stat-my-logs" class="stat-value">—</div><div class="stat-meta">Shared documents marked complete</div></article>' +
-          '<article class="stat-card"><div class="stat-label">Today</div><div id="stat-today" class="stat-value">—</div><div class="stat-meta">Your current practice</div></article>' +
-          '<article class="stat-card"><div class="stat-label">Overdue</div><div id="stat-overdue" class="stat-value">—</div><div class="stat-meta">Past documents still in progress</div></article>' +
-        '</section>' +
-
-        '<section class="quick-grid">' +
-          '<article class="quick-card"><div class="quick-card-label">Today&apos;s documentation</div><div id="today-status" class="quick-card-value">—</div><div id="today-status-note" class="quick-card-note">Checking…</div></article>' +
-          '<article class="quick-card"><div class="quick-card-label">Team completion</div><div id="team-completion" class="quick-card-value">—</div><div class="quick-card-note">Latest document status</div></article>' +
-          '<article class="quick-card"><div class="quick-card-label">Latest practice</div><div id="latest-practice" class="quick-card-value">—</div><div id="latest-practice-note" class="quick-card-note">No practice yet</div></article>' +
-        '</section>' +
-
-        '<section class="section-head"><div><h2>Needs your attention</h2><p>Past practice documents that still need team contributions.</p></div></section>' +
-        '<section id="overdue-section" class="card-shell" style="padding:20px;margin-bottom:28px"><div id="overdue-list" class="overdue-list"></div></section>' +
-
-        '<section class="section-head"><div><h2>Recent practices</h2><p>The engineering record builds one practice at a time.</p></div><a class="btn btn-outline btn-sm" href="./practices.html">View all</a></section>' +
-        '<section class="card-shell" style="padding:8px 20px;margin-bottom:28px"><div id="recent-practices" class="practice-list"></div></section>' +
-
-        '<section class="section-head"><div><h2>Recent activity</h2><p>Latest shared-document contributions, synced live.</p></div></section>' +
-        '<section class="card-shell" style="padding:8px 20px"><div id="recent-activity" class="activity-list"></div></section>';
-
-      attachLogout("#logout-button");
-      initializeDashboard(user);
-    });
-  </script>
-</body>
-</html>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Dashboard | MasterMinds</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="./css/app.css?v=20261119-02"><link rel="icon" href="./favicon.svg" type="image/svg+xml"></head><body><div id="app-shell"></div><script type="module">
+import {requireAuth,attachLogout} from "./js/auth.js?v=20260926-02";import {renderShell} from "./js/shell.js?v=20261119-02";import {initializeDashboard} from "./js/dashboard.js?v=20261119-02";
+requireAuth(async user=>{renderShell({active:"dashboard",title:"Dashboard",user});document.getElementById("page-content").innerHTML=
+'<section class="page-header dashboard-header"><div><h2 id="welcome" class="page-title">Welcome back.</h2><p class="page-subtitle">A clear view of the team’s engineering work.</p></div></section>'+
+'<section class="stats-grid dashboard-stats"><article class="stat-card"><div class="stat-label">Practices</div><div id="stat-practices" class="stat-value">—</div><div class="stat-meta">Total team sessions</div></article><article class="stat-card"><div class="stat-label">In progress</div><div id="stat-in-progress" class="stat-value">—</div><div class="stat-meta">Documents still being built</div></article><article class="stat-card"><div class="stat-label">Complete</div><div id="stat-complete" class="stat-value">—</div><div class="stat-meta">Core sections documented</div></article></section>'+
+'<section class="section-head dashboard-section-head"><div><h2>Recent practices</h2><p>Open a practice to view or contribute to its shared document.</p></div><a class="btn btn-outline btn-sm" href="./practices.html">All practices</a></section>'+
+'<section id="recent-practices" class="practice-list"><div class="card-shell"><div class="loading">Loading practices…</div></div></section>';
+attachLogout("#logout-button");initializeDashboard(user);});
+</script></body></html>
