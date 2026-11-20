@@ -139,14 +139,18 @@ async function startEditSession(sectionId){
   await endEditSession();
   const ref=doc(collection(db,"practices",practice.id,"documentSessions"));
   await setDoc(ref,{userId:user.uid,memberName:name(),sectionId,startedAt:serverTimestamp(),activeMs:0,status:"active",lastActivityAt:serverTimestamp()});
-  activeSession={ref,lastTick:Date.now()};
+  activeSession={ref,lastTick:Date.now(),lastInteraction:Date.now()};
   sessionTimer=setInterval(()=>flushEditSession(false),10000);
 }
 async function flushEditSession(force){
   if(!activeSession||sessionBusy)return;
   if(!force&&document.visibilityState!=="visible")return;
-  const now=Date.now(),delta=Math.max(0,now-activeSession.lastTick);
+  const now=Date.now();
+  const recentlyActive=now-(activeSession.lastInteraction||activeSession.lastTick)<60000;
+  const elapsed=Math.max(0,now-activeSession.lastTick);
   activeSession.lastTick=now;
+  if(!recentlyActive)return;
+  const delta=Math.min(elapsed,60000);
   if(delta<500)return;
   sessionBusy=true;
   try{
@@ -389,7 +393,8 @@ function bindControls(){
   $("item-editor-close").addEventListener("click",closeItemEditor);
   $("item-editor-modal").addEventListener("click",e=>{if(e.target.id==="item-editor-modal")closeItemEditor();});
   $("item-editor-form").addEventListener("submit",e=>{e.preventDefault();saveItem();});
-  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flushEditSession(true);else if(activeSession)activeSession.lastTick=Date.now();});
+  ["pointerdown","keydown","input","scroll","touchstart"].forEach(eventName=>document.addEventListener(eventName,()=>{if(activeSession)activeSession.lastInteraction=Date.now();},{passive:true}));
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flushEditSession(true);else if(activeSession){activeSession.lastTick=Date.now();activeSession.lastInteraction=Date.now();}});
   window.addEventListener("pagehide",()=>{if(activeSession)flushEditSession(true);});
   document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(editingSection)closeSectionEditor();if(editingItem)closeItemEditor();}});
 }
